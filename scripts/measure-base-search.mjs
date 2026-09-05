@@ -74,11 +74,28 @@ for (const [season, list] of Object.entries(PG.seasons)) {
   }
 }
 
-console.log("building panel ...");
+/* ============================================================
+   LAUGIN — OG HVERS VEGNA HUN ER STILLANLEG (4.9.2026)
+   ============================================================
+   MAELT 4.9.2026: `expected_goals`, `expected_assists`,
+   `expected_goals_conceded` og `starts` birtast FYRST i UMFERD 16 i
+   2022/23 og eru alls ekki til 2021/22 (FPL baetti theim vid um
+   HM-hleid). Fyrir lagfaeringuna baru thaer radir 0, svo `startRate`,
+   `xg90`, `xgi90` og `overPerf` voru FOST 0 i ~25% panelsins og litu ut
+   eins og maeling — afbrigdi sem lesa thau voru thvi doemd a tilbunum
+   nullum.
+   `--pool=starts` skorðar lauginа vid radir thar sem svidin eru
+   RAUNVERULEGA til (`hasStarts`), svo samanburdur a theim afbrigdum se
+   sanngjarn. Sjalfgefid er OLL laugin, thvi sigurvegarinn les hvorugt
+   svidid og a ad maelast a ollu sem til er.
+   ============================================================ */
+const POOL = (process.argv.find(a => a.startsWith("--pool=")) || "").split("=")[1] || "full";
+console.log(`building panel ... (pool: ${POOL})`);
 const rows = buildPanel({ minHistory: 1, includeBlanks: true })
   .map(r => ({ ...r, ...(past.get(`${r.season}|${r.name}|${r.round}`) || {}),
                prev: prevSeason.get(`${r.season}|${r.name}`) || null }))
-  .filter(r => r.nApp != null);
+  .filter(r => r.nApp != null)
+  .filter(r => POOL !== "starts" || r.hasStarts === 1);
 const SEASONS = [...new Set(rows.map(r => r.season))];
 console.log(`rows ${rows.length} · seasons ${SEASONS.join(", ")}`);
 

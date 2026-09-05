@@ -74,7 +74,21 @@ const DATA = "data";
    theim. Fastinn getur thvi ekki verid "valinn" aftur an thess ad profid
    segi fra.
    ============================================================ */
-export const DC_P0_PRIOR = { DEF: 0.263, MID: 0.168, FWD: 0.013 };
+/* ============================================================
+   ENDURMAELT PER LEIK (4.9.2026) — GOMLU TOLURNAR KOMU UR
+   TVOFALDRI-UMFERDAR VILLUNNI
+   ============================================================
+   Hér stod `{ DEF: 0,263, MID: 0,168, FWD: 0,013 }`. Thaer tolur voru
+   reiknadar ur `player_gw_2526.json`, thar sem tvofold umferd er
+   SAMANLOGD i eina rod — svo `starts` taldi einn af tveimur og summan
+   var borin ad throskuldi sem er PER LEIK. Badar skekkjur YKJA hittnina.
+   Endurmaelt a HRASKRANNI (`fpl_player_gw.json`, ein rod per LEIK,
+   2025/26, byrjanir einar, GK utilokadir):
+     DEF 817/3188 = 0,2563 · MID 583/3580 = 0,1628 · FWD 9/834 = 0,0108
+   Fastarnir eru forgildid sem allir eru dregnir ad medan laugin er lítil,
+   svo ofmaeling hér ofmaelir ALLA. Talan er nu maeld a rettri einingu.
+   ============================================================ */
+export const DC_P0_PRIOR = { DEF: 0.256, MID: 0.163, FWD: 0.011 };
 export const DC_P0_PRIOR_BY_TYPE = { 2: DC_P0_PRIOR.DEF, 3: DC_P0_PRIOR.MID, 4: DC_P0_PRIOR.FWD };
 
 
@@ -1483,6 +1497,31 @@ async function playedGwIdsFromDisk(events) {
   return playedGwIds(events, fx);
 }
 
+/* ============================================================
+   TALNING UR SAMANLAGDRI SLIM-ROD — HREINT OG PROFANLEGT
+   (dregid ut 4.9.2026)
+   ============================================================
+   Reglan sjalf er skjolud i `computeDefconHistory`. Astaedan fyrir thvi
+   ad hun er HREINT FALL er su sama og alls stadar annars stadar i thessu
+   repo-i: hun kviknar adeins a tvofaldri umferd, og tvofold umferd er
+   sjaldgaef — kodinn hefdi thvi fyrst verid reyndur einn morgun i
+   framtidinni, sem er „omældur kodi sem fer i gang" (CLAUDE.md kafli 5).
+   Nu er hann profadur a tilbunum rodum thar sem svarid er thekkt.
+   ============================================================ */
+export function dcCountFromSlim(gwMap, inv, th) {
+  let starts = 0, hits = 0, undecided = 0;
+  for (const g of Object.values(gwMap || {})) {
+    const st = g?.[inv.starts] ?? 0;
+    if (st <= 0) continue;
+    const dc = g[inv.dc];
+    if (dc == null) continue;                  // timabil an DefCon -> ekki talid
+    if (st === 1) { starts++; if (dc >= th) hits++; continue; }
+    if (dc < th) { starts += st; continue; }   // hvorugur nadi -> akvardad
+    undecided += st;                           // summan sker ekki ur
+  }
+  return { starts, hits, undecided };
+}
+
 async function computeDefconHistory() {
   const DC_K = 10;
   const POS_THRESH = { GK: 10, DEF: 10, MID: 12, FWD: 12 };
@@ -1523,15 +1562,29 @@ async function computeDefconHistory() {
          reiknad ur SOMU summum, svo adlagada talan dro alla ad medaltali
          sem var sjalft vanmetid. Badar noturnar a skjanum sogdu "starts"
          allan timann — kodinn, ekki textinn, var rangur.                */
-      let starts = 0, hits = 0;
-      for (const g of Object.values(row.gw || {})) {
-        if ((g[inv.starts] ?? 0) <= 0) continue;
-        const dc = g[inv.dc];
-        if (dc == null) continue;          // timabil an DefCon -> ekki talid
-        starts++;
-        if (dc >= th) hits++;
-      }
-      if (starts > 0) out[code] = { pos, starts, hits };
+      /* ============================================================
+         TVOFOLD UMFERD ER TVEIR LEIKIR — LIKA HER (4.9.2026)
+         ============================================================
+         Slim-skrain LEGGUR SAMAN leikina i tvofaldri umferd (thad er
+         skjalad og viljandi), svo rodin ber `starts: 2` og `dc` sem
+         SUMMU. Gamli kodinn taldi `starts++` einu sinni og bar summuna
+         ad throskuldi sem er PER LEIK. MAELT: 76 byrjanir tyndust og 32
+         draugahittir urdu til (t.d. 10 + 8 = 18 >= 12).
+         SUMMAN LEYFIR ThRJU SVOR, EKKI TVO:
+           · `starts === 1`            -> venjulegt, akvardad,
+           · `starts >= 2 && dc < th`  -> HVORUGUR leikur nadi throskuldi,
+                                          svo thetta er lika AKVARDAD,
+           · `starts >= 2 && dc >= th` -> gaeti verid 0, 1 eda 2 hittir og
+                                          summan sker ekki ur.
+         Sidasta tilfellid er ekki akvardanlegt ur thessari skra, svo thad
+         er TEKID UT UR BADUM — teljara OG nefnara. Ad telja thad sem
+         hitt ykir hittnina (gamla hegdunin); ad telja thad sem miss
+         vanmetur hana. „Faar maelingar -> ENGIN tala" gildir lika um
+         staka rod.
+         Talid er hversu margar byrjanir falla thannig, svo thognin se
+         synileg i skranni sjalfri.                                     */
+      const { starts, hits, undecided } = dcCountFromSlim(row.gw, inv, th);
+      if (starts > 0) out[code] = { pos, starts, hits, ...(undecided ? { undecided } : {}) };
     }
     /* TIMABIL AN DEFCON ER SLEPPT — MAELT: i 2122-2425 er `dc` skrifad
        sem 0 (ekki null), svo an thessarar sidu hefdi hver leikmadur fengid
@@ -1622,7 +1675,35 @@ async function computeDefcon(events, els) {
          Profid (kafli 6) fann thad.                                     */
       if ((st.starts ?? 0) <= 0) continue;
       const a = agg[id] || (agg[id] = { starts:0, hits:0, cbit:0, cbirt:0, mins:0 });
-      a.starts++; a.mins += minutes;
+      /* ============================================================
+         TVOFOLD UMFERD ER TVEIR LEIKIR, EKKI EINN (4.9.2026)
+         ============================================================
+         `live/gwN.json` ber SAMANLAGDAR tolur umferdarinnar, svo i
+         tvofaldri umferd er `st.starts` TVEIR og `cbit` summa beggja
+         leikja. Gamli kodinn gerdi tvennt rangt i einu:
+           · `a.starts++` taldi EINN thott byrjanirnar vaeru tvaer,
+           · og bar SUMMUNA ad throskuldi sem er PER LEIK, svo madur med
+             6 og 9 (hvorugur naer 10) fekk „hit" upp a 15.
+         Bædi ykja hittnina, og hun er forgildid (`p0`) fyrir alla hina.
+         MAELT a 2025/26-sogunni: 76 byrjanir tyndust og 32 draugahittir
+         urdu til; DEF-forgildid maelist 0,2563 per LEIK a moti 0,263 sem
+         skjalid ber.
+         ThETTA HEFUR EKKI BITID ENN og gerir thad i FYRSTU TVOFOLDU
+         UMFERD 2026/27 — thess vegna er thad lagfaert nuna en ekki thegar
+         talan litur skringilega ut.
+         LEIDIN ER TIL I GOGNUNUM: `explain` er FYLKI MED EINNI FAERSLU
+         PER LEIK og hver ber `defensive_contribution` med `points` (2
+         thegar throskuldinum er nad). Hittir eru thvi taldir ThADAN —
+         nakvaemlega og an thess ad giska — og `starts` kemur ur
+         `st.starts`, sem er rett tala fyrir nefnarann.
+         `Math.min(h, starts)`: hitti hann i leik sem hann BYRJADI EKKI
+         ma sa hittur ekki fara i teljara sem hefur byrjanir i nefnara.
+         VARALEID: eldri skrar an `explain` falla a gamla samlagningar-
+         profid, sem er rett fyrir EINFALDA umferd — og thaer eru allar
+         einfaldar, thvi tvofold umferd er thad sem gatid snerist um.  */
+      const fxs = Array.isArray(el.explain) ? el.explain : [];
+      const nStarts = st.starts ?? 0;
+      a.starts += nStarts; a.mins += minutes;
       // ÓSTAÐFEST: notum defensive_contribution stigin úr explain sem sanngildi ef til,
       // annars reiknum úr cbi+tackles(+recoveries). Loggum fyrsta þekkta manninn til að staðfesta.
       const cbi = st.clearances_blocks_interceptions ?? 0;
@@ -1636,8 +1717,11 @@ async function computeDefcon(events, els) {
          markmenn fengu 12 — hun lysti hinu gagnstaeda vid kodann.       */
       const threshold = pos === 2 ? 10 : 12; // DEF vs MID/FWD
       const metric = pos === 2 ? cbit : cbirt;
-      // staðfesta má gegn 'defensive_contribution' stigum í explain
-      if (metric >= threshold) a.hits++;
+      const perFx = fxs.map(f => (Array.isArray(f?.stats) ? f.stats : [])
+        .find(x => x?.identifier === "defensive_contribution"))
+        .filter(d => d && (d.points ?? 0) > 0).length;
+      if (fxs.length) a.hits += Math.min(perFx, nStarts);
+      else if (metric >= threshold) a.hits++;      // varaleid: skra an `explain`
     }
   }
   const out = Object.entries(agg).map(([id, a]) => ({
@@ -2562,6 +2646,33 @@ async function fetchElo() {
         xg_home: +xgH.toFixed(2), xg_away: +xgA.toFixed(2),
       };
     });
+    /* ============================================================
+       200 MED ENGU ER EKKI ARANGUR (4.9.2026)
+       ============================================================
+       MAELT i dag: `http://api.clubelo.com/Fixtures` svarar **200 med 26
+       baetum** og innihaldid er ordrett **„Fixtures API deactivated"**.
+       ClubElo hefur thvi SLOKKT a endapunktinum — en HTTP-stadan segir
+       200, svo kodinn thattadi tomt CSV, skrifadi `fixtures: []` og
+       skradi **graena rod med 0**. Graen rod sem ber ekkert er verri en
+       raud: hun segir „i lagi" um heimild sem er farin.
+       Sama aett og `fdcouk` 301 -> `EC.csv` (kafli 6): 200 sem er ekki
+       gognin. Profsteinninn ma thvi ekki vera HTTP-stadan heldur
+       INNIHALDID — akkurat sama nidurstada og thar.
+       ThAD SEM ThETTA KOSTAR ER MAELT OG LITID: `eloCsByFx` er ANNAD
+       threp af thremur i `csFor` (bokmakari, svo elo, svo
+       `cleanSheetProb`), og threpid sem tekur vid er MAELT BETRA en
+       gamla uppflettitaflan (skill 5,94% a moti 3,91%). Rauda rodin
+       thydir „ein heimild af thremur vantar", ekki „CS% er onytt".   */
+    if (!out.length) {
+      const why = /deactivated/i.test(String(ft || "").slice(0, 200))
+        ? "ClubElo has DEACTIVATED the Fixtures endpoint (HTTP 200, body "
+          + "'Fixtures API deactivated'). This is a 200 that is not the data."
+        : `no ENG fixtures parsed from ${fr.length} rows`;
+      record("elo_fixtures", false, 0, `${why} — cs_home/cs_away are the SECOND `
+        + "of three CS% sources; the third (cleanSheetProb) is measured better "
+        + "than the old lookup table, so this is one source of three, not a dead column.");
+      return;
+    }
     await writeJSON("elo_fixtures.json", { updated: status.updated, fixtures: out });
     record("elo_fixtures", true, out.length, `${engFx.length} ENG of ${fr.length}`);
   } catch (e) {
@@ -3896,7 +4007,35 @@ async function fetchInjuries() {
       }
       await writeJSON("injuries.json", { updated: status.updated, plan, via,
         error: errs.join(" | ").slice(0, 200), players: [], unmatched: [] });
-      record("apisports_injuries", false, 0, errs[0].slice(0, 70));
+      /* ============================================================
+         RAUD ROD SEM SEGIR HVAD HUN KOSTAR — OG ThAD ER LITID
+         (5.9.2026)
+         ============================================================
+         Bert villuskeyti („Your account is suspended") sendir naesta mann
+         i ad laga reikninginn eda finna nyja heimild. Hvorugt er thess
+         virdi, og thad er MAELT:
+           · 652 leikmenn, 172 flaggadir, 99 theirra brottfor/lan (`u`) —
+             ekki meidsli. Eftir standa 73 raunveruleg tiltaekileika-mal.
+           · FPL NEFNIR TEGUNDINA I 59 af 73 (80,8%) og
+             `chance_of_playing_next_round` er til fyrir ALLAR 73.
+           · Gatid er thvi 14 leikmenn af 652 (2,1%) og thad er
+             LIKAMSHLUTINN EINN — ekki akvordunin.
+         OG BADAR FRIAR VARALEIDIR ERU VAGAR A NAKVAEMLEGA ThESSUM RODUM:
+         FotMob ber `injury.id` sem er EKKI likamshluta-koði (7 id-in sem
+         thekja flest tilfellin eru margraedd), og sportsgambler segir
+         „Other" i 50% gap-radanna a moti 4,1% theirra sem FPL hefur
+         thegar typad — ~12x thjoppun. Bædar heimildir thegja a somu
+         stodum thvi klubbarnir hafa ekki gefid thad upp.
+         ThETTA ER ThOGN FELAGANNA, EKKI GAGNASKORTUR — engin heimild
+         lagar hana. Og `injuries.json` er BIRTINGAR-audgun: `injuryById`
+         a thrja lesendur, alla i texta; ekkert i FFDR, `rankScore` ne
+         `expPointsFor` les hana.                                       */
+      record("apisports_injuries", false, 0,
+        `${errs[0].slice(0, 60)} — injury TYPE is enrichment only: FPL already `
+        + "names the type in 80.8% of availability rows and gives a playing "
+        + "chance for all of them; the remaining ~2% of players are "
+        + "unspecified because the clubs have not disclosed, and both free "
+        + "alternatives are vague on exactly those rows (measured 5.9.2026).");
       return;
     }
   }

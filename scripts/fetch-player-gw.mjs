@@ -151,6 +151,36 @@ for (const [key, dir] of Object.entries(SEASONS)) {
 
   const rowsOut = [];
   const slim = {};                       // code -> { t, p, gw: { round: [tolur] } }
+  /* ============================================================
+     SVID SEM ER EKKI TIL ALLT TIMABILID VERDUR AD VERA `null`
+     (4.9.2026)
+     ============================================================
+     `fill(0)` og „vantar -> 0 i summu" eru RETT fyrir staka rod sem
+     vantar gildi i timabili thar sem svidid ER til: madur sem gerdi
+     enga stodsendingu leggur 0 til summunnar.
+     ThAU ERU RONG ThEGAR SVIDID ER EKKI TIL YFIR HOFUD. `dc`, `cbit`,
+     `recov` og `tack` eru ekki i FPL-gognum 2019-20 til 2024-25 (FPL
+     bar thau 2016-19, felldi thau ut og tok thau upp aftur 2025-26 —
+     staðfest a vaastav-speglinum), svo ALLAR radir theirra timabila
+     baru 0. Thad er nakvaemlega gildran sem CLAUDE.md kafli 8 skjalar:
+     *„dc var geymt sem 0, ekki null -> hver leikmadur hefdi fengid
+     hittni 0,000"*. Hun er meinlaus i dag ADEINS af thvi ad
+     `defcon_history` gatar a timabils-lista — thad er hlif, ekki
+     lagfaering, og hun fellur um leid og einhver les skrana beint.
+
+     REGLAN ER LEIDD, EKKI HANDSKRIFUD: svid sem BAR ALDREI GILDI i
+     thessu timabili er sett i `null` i ollum rodum. Enginn
+     timabils-listi, engin nofn — sama form og `gwBlindKeys` og
+     `liveOnlyRawFields` (kafli 8), thvi handskrifadur listi staðnar.
+     ============================================================ */
+  const seenStat = new Array(SLIM_STATS.length).fill(false);
+  /* Svid a HRASKRANNI sem FPL hefur baett vid eda fellt ut i tímans rás.
+     Listinn er ekki tæmandi yfir skrána — hann nefnir thau svid thar sem
+     0 og „ekki til" eru raunverulega olik, og hann er STADFESTUR i
+     `defcon-shrink.mjs` kafla 7b, svo ny svid i sömu stodu komi fram. */
+  const WIDE_WATCH = ["starts", "expected_goals", "expected_assists",
+                      "expected_goals_conceded", "xP"];
+  const seenWide = {}, firstRound = {};
   const unmatchedTeam = new Set();
   let noFixture = 0, kept = 0, noCode = 0, dupSkipped = 0;
   for (const r of rows) {
@@ -171,6 +201,22 @@ for (const [key, dir] of Object.entries(SEASONS)) {
     const fx = byDayTeam.get(`${day}|${team}`) || byDayTeam.get(`${shift(-1)}|${team}`) || byDayTeam.get(`${shift(1)}|${team}`);
     if (!fx) { noFixture++; continue; }
     const home = fx.HomeTeam === team;
+    /* SOMU REGLU BEITT A HRASKRANA — sja `seenStat` og athugasemdina
+       vid slim-rodina. `num()` breytir vantandi gildi i 0, sem er RETT
+       fyrir staka rod en RANGT thegar svidid er ekki til allt timabilid.
+       MAELT: `starts` var 0 i OLLUM 10.485 leiknum rodum 2021/22 og i
+       52,7% rada 2022/23 (dalkurinn kom inn a midju timabili), svo
+       `startRate` i `panel2.mjs` var **fast 0 fyrir heilt timabil** og
+       oll afbrigdi sem lasu hann voru maeld a menguðum gognum.
+       Sami galli og i slim-skranum, bara a hinni leidinni.            */
+    for (const f of WIDE_WATCH) {
+      const raw = r[f];
+      if (raw != null && raw !== "" && +raw !== 0) {
+        seenWide[f] = true;
+        const rd = num(r.round);
+        if (firstRound[f] == null || rd < firstRound[f]) firstRound[f] = rd;
+      }
+    }
     rowsOut.push([
       num(r.round), fx.Date, team, r.position || "", home ? 1 : 0,
       num(r.minutes), num(r.starts), num(r.total_points),
@@ -220,15 +266,52 @@ for (const [key, dir] of Object.entries(SEASONS)) {
         const f = SLIM_STATS[i];
         const raw = r[SLIM_SRC[f] || f];
         if (raw == null || raw === "") continue;      // vantar -> 0 i summu
+        seenStat[i] = true;                            // svidid ER til thetta timabil
         v[i] += Math.round(num(raw) * (SLIM_SCALE[f] || 1));
       }
     }
+  }
+  /* NULLA UT SVID SEM BAR ALDREI GILDI ThETTA TIMABIL — sja ad ofan. */
+  const WIDE_IDX = { starts: 6, expected_goals: 15, expected_assists: 16,
+                     expected_goals_conceded: 17, xP: 22 };
+  const absentWide = WIDE_WATCH.filter(f => !seenWide[f]);
+  for (const f of absentWide) for (const row of rowsOut) row[WIDE_IDX[f]] = null;
+  /* ============================================================
+     OG SUM SVID KOMU INN A MIDJU TIMABILI (4.9.2026)
+     ============================================================
+     „Ekki til allt timabilid" var of grof regla. MAELT: `starts` birtist
+     fyrst i UMFERD 16 i 2022/23 — umferdir 1-15 bera 0 i ollum ~4.000
+     leiknum rodum, sem er dalkur sem var ekki til, ekki 4.000 menn sem
+     komu af bekknum. (FPL baetti honum vid um HM-hleid.)
+     Reglan er thvi PER UMFERD og hun er LEIDD: fyrsta umferd med
+     gildi > 0 markar upphafid; allt a undan verdur `null`.
+     FORSENDAN SEM ThETTA HVILIR A ER SOGD: hver umferd hefur ~220
+     byrjunarlidsmenn og fjolda leikmanna med xG > 0, svo umferd thar sem
+     ENGIN rod ber gildi getur ekki verid raunveruleg nulltala. Su
+     forsenda gildir um ThESSI svid og er astaedan fyrir thvi ad listinn
+     er stuttur og handvalinn en ekki „oll svid".
+     ============================================================ */
+  const lateWide = [];
+  for (const f of WIDE_WATCH) {
+    const from = firstRound[f];
+    if (from == null || from <= 1) continue;
+    let n = 0;
+    for (const row of rowsOut) if (num(row[0]) < from) { row[WIDE_IDX[f]] = null; n++; }
+    lateWide.push(`${f} from GW${from} (${n} earlier rows nulled)`);
+  }
+  const absent = SLIM_STATS.map((f, i) => (seenStat[i] ? null : i)).filter(i => i != null);
+  if (absent.length) {
+    for (const e of Object.values(slim))
+      for (const row of Object.values(e.gw)) for (const i of absent) row[i] = null;
   }
   out[key] = rowsOut;
   slimOut[key] = slim;
   const pos = {};
   for (const r of rowsOut) pos[r[3]] = (pos[r[3]] || 0) + 1;
   report.push(`${key}: ${kept} rows (min>0) · ${Object.entries(pos).map(([k, v]) => k + " " + v).join(" ")}` +
+    `${absent.length ? ` · SLIM ABSENT (null, not 0): ${absent.map(i => SLIM_STATS[i]).join(", ")}` : ""}` +
+    `${absentWide.length ? ` · WIDE ABSENT (null, not 0): ${absentWide.join(", ")}` : ""}` +
+    `${lateWide.length ? ` · WIDE ARRIVED MID-SEASON: ${lateWide.join("; ")}` : ""}` +
     `${unmatchedTeam.size ? ` · ÓPÖRUÐ LIÐ: ${[...unmatchedTeam].join(", ")}` : ""}` +
     `${noFixture ? ` · ${noFixture} rows without a match` : ""}` +
     `${noCode ? ` · ${noCode} without a code` : ""}` +

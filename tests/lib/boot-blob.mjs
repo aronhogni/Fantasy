@@ -58,7 +58,13 @@ const sleep = ms => new Promise(r => realSetTimeout(r, ms));
    Safn sem er UM akvedna umferd a ad SEGJA thad: appid opnar a theirri
    umferd sem er verid ad skipuleggja (`planningGw`), og su tala faerist
    um leid og umferd klarast. Sja `tests/lib/select-gw.mjs`.            */
-export async function boot(state, { delay = 0, picks = null, entry = null, warns = null, gw = null } = {}) {
+export async function boot(state, { delay = 0, picks = null, entry = null, warns = null, gw = null,
+                                    /* `onFetch` — SJA HVER SOKN ER GERD, ekki adeins
+                                       hvad kom til baka. Baett vid 5.9.2026 fyrir
+                                       „endurstilling saekir raunlidid upp a nytt":
+                                       su fullyrding er UM SOKNINA sjalfa, svo hun
+                                       verdur ad vera synileg kallandanum.        */
+                                    onFetch = null } = {}) {
   const dom = new JSDOM("<!doctype html><div id=root></div>",
     { url: "http://localhost/", pretendToBeVisual: true });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -81,6 +87,7 @@ export async function boot(state, { delay = 0, picks = null, entry = null, warns
        (`data-resilience`, `untrusted-input`) profar bada asa.          */
     if (delay) await sleep(delay);
     const s = String(u);
+    if (onFetch) onFetch(s);
     /* PROXY-LEIDIRNAR FYRST. Almenni `/data/`-handlerinn ma ekki gleypa
        thaer — sertaekir mock-ar verda ad koma A UNDAN honum (CLAUDE.md 5,
        jsdom-gildrurnar).                                                */

@@ -730,7 +730,6 @@ export const S = {
   dExPts: { fontFamily:mono, fontSize:11.5, fontWeight:700, minWidth:26, textAlign:"right" },
   injSrc: { fontFamily:mono, fontSize:8.5, opacity:0.75 },
   dNote: { background:C.cardAlt, borderRadius:8, padding:"8px 10px", fontSize:10.5, color:C.text2, lineHeight:1.5, marginBottom:10 },
-  pSell: { fontFamily:mono, fontSize:8.5, color:C.red, marginLeft:2 },
   dActions: { display:"flex", gap:6, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${C.border}` },
   dBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:7, padding:"7px 11px", fontSize:12, color:C.text, cursor:"pointer", fontWeight:500 },
   dotWait: { width:7, height:7, borderRadius:"50%", background:"#f59e0b", flexShrink:0 },

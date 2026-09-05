@@ -139,9 +139,32 @@ export function buildPanel({ minHistory = 3, includeBlanks = false } = {}) {
         if (f && code && hist.length >= minHistory && (includeBlanks || q[H.mins] > 0)) {
           const win = k => hist.slice(-k);
           const l3 = win(3), l5 = win(5), l10 = win(10);
+          /* ============================================================
+             NULL ER EKKI NULL — LIKA I ThESSUM PANELI (4.9.2026)
+             ============================================================
+             `(x[k] || 0)` breytti VANTANDI gildi i 0. Thad var meinlaust
+             medan oll svid voru til, en MAELT 4.9.2026: `expected_goals`,
+             `expected_assists`, `expected_goals_conceded` og `starts`
+             birtast FYRST i UMFERD 16 i 2022/23 og eru alls ekki til
+             2021/22 — FPL baetti theim vid um HM-hleid. Radirnar baru 0,
+             svo `xg90`, `xgi90`, `overPerf`, `startRate` og `full90` voru
+             FOST 0 i einu og halfu timabili af fimm og litu ut eins og
+             maeling.
+             Nu er summan tekin YFIR ThAER RADIR SEM BERA GILDI og
+             nefnarinn er minutur SOMU rada; `hasXg`/`hasStarts` segja
+             hvort glugginn atti nokkur gogn, svo maeling sem les thessi
+             svid geti skorðad sig vid raunverulegar radir i stad thess ad
+             bera sig saman vid tilbunar nullur.
+             ============================================================ */
           const per90 = (arr2, k) => {
-            const m = arr2.reduce((a, x) => a + x[H.mins], 0);
-            return m > 0 ? arr2.reduce((a, x) => a + (x[k] || 0), 0) / (m / 90) : 0;
+            const rows2 = arr2.filter(x => x[k] != null);
+            const m = rows2.reduce((a, x) => a + x[H.mins], 0);
+            return m > 0 ? rows2.reduce((a, x) => a + (+x[k] || 0), 0) / (m / 90) : 0;
+          };
+          const anyOf = (arr2, k) => arr2.some(x => x[k] != null);
+          const rateOf = (arr2, f) => {
+            const rows2 = arr2.filter(x => x[H.starts] != null);
+            return rows2.length ? mean(rows2.map(f)) : 0;
           };
           const prev = prevAgg[season]?.[nm];
           const xp5 = l5.map(x => x[H.xP]).filter(v => v > 0);
@@ -160,9 +183,13 @@ export function buildPanel({ minHistory = 3, includeBlanks = false } = {}) {
             mins3: mean(l3.map(x => x[H.mins])), mins5: mean(l5.map(x => x[H.mins])),
             mins10: mean(l10.map(x => x[H.mins])),
             minsTrend: m2 - m3b,
-            startRate: mean(l5.map(x => x[H.starts] >= 1 ? 1 : 0)),
-            start10: mean(l10.map(x => x[H.starts] >= 1 ? 1 : 0)),
+            startRate: rateOf(l5, x => (x[H.starts] >= 1 ? 1 : 0)),
+            start10: rateOf(l10, x => (x[H.starts] >= 1 ? 1 : 0)),
             full90: mean(l5.map(x => x[H.mins] >= 90 ? 1 : 0)),
+            /* ThEKJU-FLOGG: „var svidid til i thessum glugga?" — an theirra
+               er 0 ur vantandi gognum ekki greinanlegt fra maeldu 0.     */
+            hasXg: anyOf(l5, H.xg) ? 1 : 0,
+            hasStarts: anyOf(l5, H.starts) ? 1 : 0,
             /* --- SÓKNARMERKI --- */
             xg90: per90(l5, H.xg), xa90: per90(l5, H.xa),
             xgi90: per90(l5, H.xg) + per90(l5, H.xa),

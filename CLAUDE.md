@@ -577,6 +577,13 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | **VELDI A FFDR-MARGFALDARANN (`mult^a`)** | **Mælt 4.9.2026, fasi B (28 afbrigði).** Nested held-out **−0,007, 2 ár af 5**, og foldarnir ÓSAMMÁLA. `a = 1,5` lítur best út á öllu úrtakinu (+0,056) og **fellur í nested-prófinu**. **EN `a = 0` (enginn leikjaliður) gefur −0,138, p 0,0043** — margfaldarinn ber merki og það er nú prófað með tönnum | 4.9.2026 |
 | **BLANDA `ep_next` AFTUR INN Í GRUNNINN** | **Mælt 4.9.2026, fasi B.** Neikvætt í ÖLLUM þyngdum: −0,072 við w = 0,3 og **−0,154 við w = 0,5 (p 0,0025)**. Okkar grunnur ber ÞEGAR það sem FPL-talan hefur — sjálfstæð staðfesting á því að `ep_next` sé form en ekki spá | 4.9.2026 |
 | **MERKI OFAN Á GÓÐAN GRUNN (`threat90`, `bps90`, `xgi90`, `dc90` …)** | **Mælt 4.9.2026, fasi C (60 afbrigði) — og þetta er NÝ spurning, því 25.8. voru þau prófuð ofan á `ppg5`-grunni sem var sjálfur vondur.** Sterkastur er `threat90 + 0,2`: nested í **5 af 5** foldum, held-out **+0,072**, 4 ár af 5 — **en p = 0,0813 og hann lifir ekki Holm**. Fellur á sama þröskuldi og sjöunda þrepið (+0,00085) og „sleppa óheppnis-liðnum" (P = 74%). **Eina afbrigðið sem lifir Holm er `hauls − 0,2` með −0,737** — einu áhrifin sem eru nógu sterk eru þau sem gera spána VERRI. `threat90` er skráður sem sterkasti opni frambjóðandinn og á að endurmælast við sjötta tímabilið | 4.9.2026 |
+| **LID LEIKMANNSINS SEM INNTAK I DC-HITTNI** | **Mælt 4.9.2026** á 7.602 útileikmanna-byrjunum 2025/26 (mótherji tengdur úr E0, 0 raðir ópáraðar). Taflan LÍTUR sterk út — Everton O/E **1,479**, Aston Villa **0,446**, og félags-hittnin helst milli helminga (split-half **r 0,769**, betur en mörk á sig sem gefa 0,402). **EN SAMSETNINGAR-NÚLLIÐ FELLIR HANA:** séu heilir leikmenn stokkaðir milli félaga með sín eigin gögn óbreytt mælist **r 0,774** — tölfræðilega eins. Þrautseigjan er ÖLL „hverjir spila þarna", sem er þegar í hverjum leikmanni. Félags-O/E fylgir mörkum á sig r **+0,517**: taflan er „lélið lið verjast meira". Út fyrir úrtak inniheldur **hvert einasta CI núll á öllum þremur klasa-stigum**. Aflprófun sýnir auk þess að tækið hefur nánast ekkert afl: aðeins **7 leikmenn** eiga ≥5 byrjanir hjá tveimur félögum á einu tímabili | 4.9.2026 |
+| **MOTHERJINN SEM INNTAK I DC-HITTNI — EKKI LOKAD, EN EKKI TEKID UPP** | **Mælt 4.9.2026, sama laug.** Þetta lifir meira en félags-liðurinn og á að endurmælast: það er **hornrétt á FFDR** (\|r\| ≤ 0,18 gegn markamun, mörkum, skotum, hornum — þess vegna náði lokaða FFDR-þrepa-spurningin því aldrei), það er **EINGÖNGU varnarmanna-áhrif** (DEF split-half r 0,412 og 0,637; MID −0,132 og 0,031, bæði með núll), stuðullinn flyst við ≈1,0, og orakel-spönnin er **0,31 DefCon-stig per DEF-byrjun** (nýtanleg 0,235) á móti 0,016 sem dómara-spjöldin voru felld við. **EN annað split-hönnunin stenst og hin SKIPTIR FORMERKI** — sama undirskrift sem felldi varnar-FFDR og DC×FFDR. Endurmælist eftir 2026/27 þegar milli-tímabila þrautseigja verður loks mælanleg | 4.9.2026 |
+| **K = 20 (SKRUMPUN UT FYRIR RIST FASA A) — STERKASTI OPNI FRAMBJODANDINN** | **Mælt 4.9.2026.** Rist fasa A var `{1,2,3,5,8}` og sigurvegarinn K=8 sat **Á JAÐRI HENNAR** — yfirborðið heldur áfram að rísa upp í ~20 (**+0,077**). Sama villa og í kvörðunar-veldinu, þar sem hún VAR gripin. **Fellur samt á þrennu:** bootstrap-CI **[−0,075, +0,123] inniheldur núll** (sami þröskuldur og felldi sjöunda þrepið við +0,00085); besta K per tímabili spannar **10–24** og 2022/23 er neikvætt við ÖLL K; og **hún brýtur kvörðunina** — meðal-skekkja per tíundarhlut tvöfaldast (0,046 → 0,099) og efsti hlutinn snýr við (+0,09 → −0,166). Að taka hana upp væri TVAER breytingar og sú síðari afturkallar level-lagfæringuna sem svaraði upprunalegu kærunni. **Leysir `threat90` af sem sterkasti opni frambjóðandinn**; endurmælist við sjötta tímabilið, með skilyrði um `BASE_CAL`-endurfitt og CI sem útilokar núll | 4.9.2026 |
+| **BONUS SEM SER LIDUR I GRUNNINUM** | **Mælt 4.9.2026 — og VIÐMIÐIÐ AFHJÚPAÐI HANA.** Besta bónus-skiptingin gefur +0,050, en **„sleppa bónus ALVEG úr grunninum" gefur +0,018** og einföld K=16/K=20 án nokkurrar skiptingar gefur +0,067/+0,077. Skiptingin var því **almenn viðbótar-skrumpun í dulargervi bónuss**. „Mæla bónus betur" er RANGA spurningin | 4.9.2026 |
+| **BETRA MINUTU-LIKAN** | **Mælt 4.9.2026 á 17 afbrigðum.** `mins5 + leitni` er **best af öllum sautján á MAE mínútnanna sjálfra** (12,129 — ekkert sló hana), og fylgni milli „betri á mínútum" og „betri á stigum" er **+0,775**, svo rásin er raunveruleg og ÞEGAR mettuð. Nested held-out á stigum: **−0,021**. Aukafundur í sömu fjölskyldu: tveggja-þátta mínútulíkön lækka MAE stiga verulega (1,872 á móti 2,017) og kosta **−0,177 á topp-15** — röðun á móti trúverðugleika, í nýjum stað | 4.9.2026 |
+| **TVOFOLD UMFERD ER EKKI TVEIR HALFIR LEIKIR** | **Mælt 4.9.2026 innan leikmanns:** raunstig per leik, tvöföld mínus einföld = **−0,005 ± 0,046 (n=1.136)**. Samlagning modelsins per leik þarf ENGA afsláttar-tölu. Sama fjölskylda: stutt hvíld (≤4 d) mínus löng (≥6 d) = **+0,005 ± 0,024 (n=1.726)** — nákvæmt núll, svo þver-sniðs hvíldar-hallinn var staðgengill fyrir liðsstyrk (og stærð hans er hvort eð er innan slembi-gólfsins) | 4.9.2026 |
+| **LENGRI SAGA EN EITT FYRRA TIMABIL** | **Mælt 4.9.2026 á 12 afbrigðum** (tvö og þrjú fyrri tímabil úr `player_seasons.json`): besta fullt úrtak **+0,001**, nested held-out **−0,011**, **0 ár af 5**. Eitt fyrra tímabil er nóg | 4.9.2026 |
 | **STODU-BUNDID K I GRUNNI VAENTRA STIGA** | **Mælt 4.9.2026** (`measure-base-search.mjs` kafli 5b), nested val a þjálfunar-tímabilum: **held-out −0,021, 1 ár af 5**. Ein skrumpunar-tala fyrir allar stöður stendur. Prófað sem EIN breyting á sigurvegaranum, ekki sem 5⁴ rist — það síðara væri ofurmátun í dulargervi leitar | 4.9.2026 |
 | **FORGILDID SEM „STIG PER LEIK" Í STAÐ per-90 × 60 mín** | **Mælt 4.9.2026, fimmti ás í leitinni (300 afbrigði).** Grunurinn er réttmætur — fasti 60/90 lítur út fyrir að skera 90-mínútna mann niður um þriðjung — en beina leiðin (`prevPts/prevMatches`) **kemst í topp-8 og vinnur ekki**: +0,381 á móti +0,406. Fastinn stendur | 4.9.2026 |
 | **EIN BYRJUN SEM DEFCON-MERKI — MERKIÐ ER RAUNVERULEGT, BIRTINGIN BREYTIST SAMT EKKI** | **Mælt 27.8.2026 að beiðni notandans um M.Sangaré** („hann er líklegur að fara að ná DefCon" eftir 13 DC á 75 mín í GW1), `scripts/measure-first-start-dc.mjs`, 360 leikmenn 2025/26 með ≥6 byrjanir, bootstrap klasað per leikmann, fast fræ. **`measure-dc-flag.mjs` setti GÓLF VIÐ 5 BYRJANIR og það er rétt um SINN mælikvarða** — hrá hittni á einni byrjun er 0% eða 100%. **En DC-TALNINGIN er samfelld og var aldrei mæld**, svo gólfið gilti um hana án mælingar. Hún ber merki: `r(DC/90 í fyrstu byrjun -> hittni í ÞEIM SEM Á EFTIR KOMA)` = **0,396 CI [0,274, 0,511] hjá MID** (DEF 0,259 [0,077, 0,418]; FWD 0,149 [−0,090, 0,361] inniheldur null), og hún slær **binæru** hittuna (0,230 [0,059, 0,399]). Hópur ≥15 DC/90 á móti <15: **+0,221 CI [+0,062, +0,422]**, útilokar null — **en n=9 í efri hópnum og bandið er ekki einrænt** (12–15 mælist 0,171, LÆGRA en 8–12 sem er 0,214), sem er undirskrift hávaða. **ÞAÐ SEM ER FELLT ER BIRTINGIN:** að skipta `hit_rate_adj` út fyrir DC/90-línu bætir MAE um **0,0063 CI [−0,0010, +0,0136] — INNIHELDUR NULL**, og línan var meira að segja fittuð á SÖMU gögnum (þak, ekki tillaga). **Skrumpaða talan stendur.** Sami mælikvarði og felldi „sleppa óheppnis-liðnum" | 27.8.2026 |
@@ -2061,6 +2068,23 @@ Eftir kvordun er **hver einasti tiundarhluti innan ±0,23** og sa efsti
 **+0,16** — og MAE fer ur 0,970 i **0,919** (og ur 4,37 i **3,14** a theim
 15 sem likanid velur).
 
+**SLEMBI-GOLFID — „VINNUR 4 AF 5 ARUM" ER EKKI SONNUN (4.9.2026).** Tolf
+hallar a **STOKKUDUM** gognum (sama dreifing, ekkert samband vid neitt), thar
+sem betra formerkid er valid eins og leit myndi gera: **midgildi +0,020,
+hamark +0,032, og FJORIR AF TOLF „vinna 4 ar af 5"**. Enginn theirra naer
+p < 0,10. I halla-laga fjolskyldum er ars-profid thvi nanast einskis virdi
+eitt og ser, og **allt undir ~+0,03 er olesanlegt**. Thetta endurmetur
+`threat90` (+0,072): hann er yfir slembi-hamarkinu, en ekki um mikid.
+**Ars-profid a ad standa A BAK VID p og bootstrap-CI, ekki vid hlidina a
+theim.**
+
+**AÐFERÐAR-ATRIÐI SEM Á AÐ GILDA HÉÐAN Í FRÁ (4.9.2026):** klasa-bootstrap á
+split-half fylgni með 20 punktum svarar *„hversu nákvæm er þessi r"*, ekki
+*„gæti þessi r komið úr engu"*. Mælt í félags-DC-athuguninni: bootstrap gaf
+[0,180, 0,734] þar sem **kvarðað hermi-núll segir að r allt að +0,44 komi upp
+án nokkurra áhrifa**. Aðeins seinni spurningin ræður upptöku. Hver split-half
+prófun hér eftir á að bera hermi-núll við hliðina á bootstrap-vikmörkunum.
+
 **MAELIKVARDINN ER SKEKKJA PER TIUNDARHLUT, EKKI MAE — OG ThAD KOSTADI
 TVAER UTGAFUR AD SJA.** MAE-fittud utgafa BATNADI a MAE og rak um leid
 veldid i `g -> 0`, sem stefnir a FASTA: a dreifingu thar sem 60% radanna
@@ -2220,4 +2244,218 @@ nu hvad grunnurinn ER i stad thess ad nefna `ep_next`. Sama regla og
 `„DC hit rate"` (per byrjun, yfir hofud) a moti `„DC points GWn"` (i theirri
 umferd): **tvaer prosentur hlid vid hlid an merkimida eru tvaer tolur undir einu
 heiti.**
+
+---
+
+## 16. FPL FELLDI DALKA UT OG TOK ThA UPP AFTUR — OG NULLIN LITU UT EINS OG MAELINGAR (4.9.2026)
+
+Notandinn bad um betri DC-hittni og ad **fara lengra aftur i timann**. Fyrsta
+svarid vid thvi var ekki maeling heldur uppgotvun: **gognin okkar loga um
+hvad er til.**
+
+### 16a. `starts`, xG, xA og xGC BIRTAST FYRST I UMFERD 16 I 2022/23
+
+`fetch-player-gw.mjs` notadi `num()` sem breytir vantandi gildi i **0**. Thad
+er RETT fyrir staka rod i timabili thar sem svidid er til (madur sem gerdi
+enga stodsendingu leggur 0 til summunnar) og **RANGT thegar svidid er ekki til
+yfir hofud**.
+
+**MAELT 4.9.2026 a hraskranni:**
+
+| timabil | leiknar radir | med `starts >= 1` |
+|---|---|---|
+| 2021/22 | 10.485 | **0 (0%)** |
+| 2022/23 | 11.345 | 5.368 (47,3%) |
+| 2023/24 | 11.384 | 8.360 (73,4%) |
+| 2024/25 | 11.566 | 8.360 (72,3%) |
+| 2025/26 | 11.498 | 8.362 (72,7%) |
+
+Fyrsta umferd 2022/23 med `starts >= 1` er **UMFERD 16** — umferdir 1-15 bera
+0 i ollum ~4.000 leiknum rodum. FPL baetti dalkinum vid um HM-hleid. Sama
+gildir um `expected_goals`, `expected_assists` og `expected_goals_conceded`.
+
+**AFLEIDINGIN VAR I MAELITAEKINU SJALFU:** `tests/lib/panel2.mjs` reiknar
+`xg90`, `xa90`, `xgi90`, `overPerf`, `startRate` og `full90` med
+`(x[k] || 0)`, svo thau voru **fost 0 i einu og halfu timabili af fimm** —
+**25% panelsins** — og litu ut eins og maeling. Hvert einasta afbrigdi i
+leitinni sem las thessi svid var thvi doemt a tilbunum nullum.
+
+**ThRJAR LAGFAERINGAR, ALLAR LEIDDAR OG ENGIN MED TIMABILS-LISTA:**
+- Slim-skrarnar: svid sem bar **aldrei** gildi thad timabil verdur `null`.
+- Hraskrain: sama, **auk** reglu um svid sem kemur inn a midju timabili —
+  fyrsta umferd med gildi > 0 markar upphafid og allt a undan verdur `null`.
+  **Forsendan er sogd:** hver umferd hefur ~220 byrjunarlidsmenn og fjolda
+  manna med xG > 0, svo umferd thar sem ENGIN rod ber gildi getur ekki verid
+  raunveruleg nulltala. Thess vegna er listinn stuttur og handvalinn.
+- `panel2.mjs`: summan er tekin **yfir thaer radir sem bera gildi** og
+  nefnarinn er minutur SOMU rada; `hasXg`/`hasStarts` segja hvort glugginn
+  atti nokkur gogn.
+
+### 16b. OG LEITIN VAR ENDURKEYRD A HEIDARLEGRI LAUG — NIDURSTADAN STENDUR
+
+`measure-base-search.mjs --pool=starts` skorðar lauginа vid radir thar sem
+svidin eru raunverulega til (101.508 af 134.711, fjogur timabil). Thar faer
+`startRate`-afbrigdid loksins sanngjarnt prof — og **fellur samt**:
+
+| | nested held-out | ar |
+|---|---|---|
+| besta afbrigdi (`K8·M5·C·per90`, notar `startRate`) | +0,311 | 4/4 |
+| **gegn modelinu i appinu** | **d topp-15 +0,003 CI [−0,272, +0,108]** | inniheldur null |
+| | **d MAE +0,0146** | utilokar null — VERRA |
+
+Fasi B fellur enn (−0,041, 0 ar af 4) og fasi C lika (−0,026, 2 af 4).
+**Hofnunin var adur ad hluta gerviverk; nu er hun maeld a rettum gognum og
+segir thad sama.**
+
+### 16c. TVOFOLD UMFERD ER TVEIR LEIKIR — OG BADIR DEFCON-SMIDIRNIR TOLDU EINN
+
+Slim-skrain **leggur saman** leikina i tvofaldri umferd (skjalad og viljandi),
+og `live/gwN.json` ber samanlagdar tolur umferdarinnar. Badir DefCon-smidirnir
+gerdu thvi tvennt rangt i einu: **toldu eina byrjun af tveimur** og **baru
+SUMMUNA ad throskuldi sem er per LEIK**. Madur med 10 og 8 fekk „hit" upp a 18
+thott hvorugur leikur naedi 12.
+
+**MAELT a 2025/26:** 76 byrjanir tyndust og 32 draugahittir urdu til.
+Hittnin i skranni er 0,1907 en per LEIK er hun 0,1853.
+
+**OG VORDURINN VAR GRAENN AF ThVI AD HANN ENDURREIKNADI UR SOMU SKEKKJU** —
+hann las `player_gw_2526.json`, sem er samanlagda skrain. **Afritid stadfesti
+afritid**, nakvaemlega mynstrid sem `buildTeamMetrics` er skjalad fyrir (kafli
+7). Vidmidid er nu `fpl_player_gw.json`, sem ber **eina rod per LEIK**.
+
+**FORGILDIN VORU ThVI OFMAELD OG ERU NU ENDURMAELD PER LEIK:**
+`DC_P0_PRIOR` fer ur `{DEF 0,263 · MID 0,168 · FWD 0,013}` i
+**`{DEF 0,256 · MID 0,163 · FWD 0,011}`** (817/3188 · 583/3580 · 9/834).
+Forgildid dregur ALLA ad ser medan laugin er litil, svo ofmaeling thar
+ofmaelir alla.
+
+**LAGFAERINGARNAR ERU SITT HVOR, ThVI GOGNIN ERU OLIK:**
+- **Lifandi smiðurinn** faer thad rett: `explain` er **fylki med einni faerslu
+  per LEIK** og hver ber `defensive_contribution` med `points`. Hittir eru
+  taldir thadan, byrjanir ur `st.starts`, og teljarinn er thakadur vid
+  byrjanir (`Math.min`) — hittur i leik sem hann byrjadi ekki ma ekki fara i
+  teljara sem hefur byrjanir i nefnara.
+- **Sogulegi smiðurinn** getur ekki nad thvi: summan leyfir **thrju** svor.
+  `starts === 1` er venjulegt; `starts >= 2 && dc < th` er **akvardad**
+  (hvorugur leikur gat nad throskuldi); `starts >= 2 && dc >= th` er
+  **oakvardad** og fer ut ur BADUM — teljara og nefnara. „Faar maelingar ->
+  ENGIN tala" gildir lika um staka rod. Talan er skrad (`undecided`) svo
+  thognin se synileg.
+
+**ThETTA HAFDI EKKI BITID ENN og hefdi bitid i FYRSTU TVOFOLDU UMFERD
+2026/27.** Thess vegna er thad profad a TILBUNUM gognum, ekki bedid eftir
+deginum. Verdir: `defcon-shrink.mjs` kaflar 6a (lifandi, `explain`) og 6b
+(sogulegur, hreint fall) — **sex stokkbreytingar felldar**.
+
+### 16c-2. „FIXTURES API DEACTIVATED" — 200 SEM ER EKKI GOGNIN (4.9.2026)
+
+Notandinn: *„lagadu allar brotnar API tengingar."* Ein theirra var brotin a
+thann hatt sem enginn gat sed:
+
+**`http://api.clubelo.com/Fixtures` svarar HTTP 200 med 26 baetum og bolurinn
+er ordrett `Fixtures API deactivated`.** ClubElo hefur slokkt a
+endapunktinum. Kodinn gataði a HTTP-stodunni, thattadi tomt CSV, skrifadi
+`fixtures: []` og skradi **GRAENA rod med 0**. Graen rod sem ber ekkert er
+verri en raud — hun segir „i lagi" um heimild sem er farin.
+
+Nakvaemlega sama aett og `fdcouk` 301 -> `EC.csv` (kafli 6), og sama lausn:
+**profsteinninn er INNIHALDID, ekki HTTP-stadan.** Rodin er nu raud og notan
+segir bædi hvad gerdist og hvad tekur vid.
+
+**KOSTNADURINN ER MAELDUR OG LITILL:** `eloCsByFx` er annad threp af thremur
+i `csFor` (bokmakari, svo elo, svo `cleanSheetProb`), og threpid sem tekur
+vid er **maelt betra** en gamla uppflettitaflan (skill 5,94% a moti 3,91%,
+ΔBrier +0,00569). Raud rod thydir „ein heimild af thremur vantar".
+
+**HINAR RAUDU RADIRNAR ERU EKKI ALLAR BILANIR:**
+- `elo_api` — 502 a doguðu CSV-inu, EN vefurinn (`clubelo.com`) svarar 200 og
+  vardadi varaleiðin fyllir `elo.json` (0,1 klst gomul). Raud `elo_api` vid
+  hlidina a graenni `elo` ER honnunin (kafli 6).
+- `apisports_account` / `apisports_injuries` — reikningurinn er **uppsagdur**
+  og lagast ADEINS a `dashboard.api-football.com`. Ekkert i repo-inu getur
+  opnad hann. Byrjunarlidin foru thegar yfir a FotMob.
+- `prediction_ledger` — „184 klst fyrir frest, utan 36 klst gluggans" er RETT
+  hegdun, ekki bilun.
+
+### 16c-3. MEIDSLA-HEIMILDIN: RAUD ROD ER RETTA SVARID — OG AUDGUNIN VAR AD YFIRTAKA HEIMILDINA (5.9.2026)
+
+`apisports_injuries` hefur verid raud i niu daga (reikningurinn uppsagdur).
+Spurningin „hvada heimild kemur i stadinn?" var **maeld adur en henni var
+svarad**, og svarid er **engin**:
+
+| | fjoldi |
+|---|---|
+| leikmenn | 652 |
+| flaggadir (`status !== "a"` eda frett) | 172 |
+| — brottfor/lan (`status: "u"`) | **99** — ekki meidsla-spurning |
+| raunveruleg tiltaekileika-mal | **73** |
+| … thar sem FPL NEFNIR tegundina | **59 (80,8%)** |
+| … an tegundar | **14 (19,2%)** |
+| radir med tomri frett | **0** |
+
+Gatid er thvi **14 leikmenn af 652 (2,1%)** og thad er **likamshlutinn einn** —
+`chance_of_playing_next_round` er til fyrir ALLAR 73. Talan 71% fra 8.8.2026
+hefur ef eitthvad er batnad i 80,8%.
+
+**BADAR FRIAR VARALEIDIR ERU VAGAR A NAKVAEMLEGA ThESSUM RODUM:**
+- **FotMob** (20/20 HTTP 200, enginn token) ber `injury.id` — **EKKI
+  likamshluta-koða**: sjo id sem thekja flest tilfellin eru **margraedd**
+  (`130` -> Ankle/Other/Knee/Knock/Thigh). Vorpun sem vid smiðudum vaeri
+  vorpun sem vid **fundum upp**.
+- **sportsgambler** (HTTP 200, læsileg tegund) er **trufverdug heimild** —
+  93,6% samhljoda FPL thar sem FPL hefur ThEGAR tegund — en a gap-rodunum
+  baetir hun raunverulegum likamshluta a **5 radir med 0,8% samanlagt
+  eignarhald**. „Other" er i **50%** gap-radanna a moti **4,1%** theirra sem
+  FPL hefur typad: **~12x thjoppun**.
+
+**BADAR ThEGJA A SOMU STODUM ThVI KLUBBARNIR HAFA EKKI GEFID ThAD UPP.
+ThETTA ER ThOGN FELAGANNA, EKKI GAGNASKORTUR** — engin heimild lagar hana.
+Endurkomudagurinn er sama saga: FotMob gefur mat a 40 af 45 „Unknown return
+date" rodum, en heimildirnar tvaer **skeikar ad midgildi 22 dogum** (17% meira
+en manud). Dagsetning sem tveir adilar deila um i thrjar vikur er omaeld tala
+sem liti ut eins og maeling.
+
+**Rauda rodin ber nu ThESSA astaedu, ekki bert „suspended"** — bert
+villuskeyti sendir naesta mann i ad laga reikning eda leita ad heimild sem er
+ekki til.
+
+**OG UPPGOTVUNIN SEM VAR MEIRA VIRDI EN NOKKUR NY HEIMILD:** i
+ahaettulistanum var `reason` ur ytri heimildinni birtur **FEITLETRADUR
+FREMST** og FPL-frettin stytt i 30 stafi a eftir honum. Thad snyr vid
+grunnreglunni sem allt repo-id stendur a — **FPL-status raedur tiltaekileika;
+adrar heimildir mega AUDGA hann, aldrei skipta honum ut** (kafli 6) — og thad
+var **virkt i dag** fyrir hverja rod sem `injuries.json` snerti. Nu leidir
+FPL-frettin og audgunin fylgir a eftir. Vordur: `smoke.test.mjs` (rodin lesin
+AF SKJANUM, ein stokkbreyting felld).
+
+> **OG MAELITAEKIN SJALF BILUDU TVISVAR I ThESSARI ATHUGUN, BADI EINS:**
+> fyrsta tegundar-thattunin fann likamshlutann „back" inni i **„Expected back
+> 18 Sep"** og typadi thar med hverja dagsetta rod — gatid maeldist 12 i stad
+> 14 og bjó til sjo gervi-ósamhljóða. Sama aett og `MUNaNEW` -> `NaN`:
+> **taekid maeldi annad en thad sagdist maela.** Og „samhljoda" id i
+> FotMob-vorpuninni voru naer oll **n = 1** — samhljomur vid n = 1 er tom
+> fullyrding.
+
+### 16d. HVE LANGT AFTUR NA GOGNIN? — MAELT, EKKI ALYKTAD
+
+Athugasemdin i `fetch-player-gw.mjs` sagdi ad varnar-dalkarnir vaeru „adeins
+til fra 2025/26". **Thad er rangt:** FPL bar `tackles`,
+`clearances_blocks_interceptions` og `recoveries` **2016-17 til 2018-19**,
+felldi thau ut 2019-20 og tok thau upp aftur 2025-26. Okkar `SEASONS`-tafla
+byrjar 2021/22 og missti thvi af theim.
+
+**En thau eru ekki nothaef i DefCon-utreikning:** `tackles` er **stigvaxandi
+vanskrad** i gomlu argongunum (hlutfall rada med `tackles == 0` fer 52,3% ->
+58,2% -> 64,7% a moti 35,0% i 2025/26), staðfest gegn FotMob thar sem vaastav
+les 0 en FotMob hefur raunverulega tolu. `tackles` er naudsynlegur hluti CBIT
+fyrir DEF, svo DefCon reiknad ur theim vaeri kerfisbundid of lagt.
+
+**LEIDIN SEM ER TIL er FotMob `/matchDetails`** — opid, enginn token, og
+**27/27 nakvaem** samsvorun vid FPL a yfirlaps-timabilinu. Per-leikmanns
+varnartolur na aftur til **2016-17** (2015-16 svarar ekki). ~2.280 koll fylla
+gatid 2019-20 til 2024-25 = **65.787 leikmanna-umferdir**.
+**Thad er sér ákvördun og hun er ekki tekin her**, thvi DefCon hreyfir ekki
+stiga-akvordunina (+0,007/threp, CI inniheldur null); virdid er i ad maela
+**thrautseigju milli timabila**, sem er einmitt profid sem naesta spurning
+tharf.
 

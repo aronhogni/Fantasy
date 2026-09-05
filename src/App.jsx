@@ -2202,8 +2202,34 @@ export default function App() {
   }
   /* Aaetlunar-radir umferdarinnar sem MA hreinsa: upphafslidid aldrei. */
   const clearableIn = g => (pl => pl.filter(t => t.gw !== g || isInitialSquadPick(t)));
+  /* ============================================================
+     ENDURSTILLING SAEKIR RAUNLIDID UPP A NYTT (5.9.2026)
+     ============================================================
+     Notandinn: *„thegar eg reseta transfer i nyjustu gameweek vill eg ad
+     appid saeki retta actual lidid mitt sem er tengt."*
+
+     `squadOverride` er sott EINU SINNI vid tengingu (effectinn hangir a
+     `[entryId, gw, events, liveTick]`), svo eftir ad hafa setid a sidunni
+     og gert breytingar i FPL SJALFU gat vollurinn borid gamla mynd. Ad
+     hreinsa plonunina skildi hann tha eftir a **stodnudum** raunhóp —
+     „reset" a ad thyda „syndu mer thad sem ER", ekki „syndu mer thad sem
+     var thegar sidan hladnadist".
+
+     `liveTick` er ThEGAR endurnyjunar-leidin (hun kom inn thegar
+     „Refresh"-takkinn for, sja athugasemdina vid soknina); hun er baeði
+     til og profud. Hér er hun einfaldlega TIKKUD.
+
+     ADEINS ThEGAR TENGT ER: an `entryId` er ekkert ad saekja og tikkid
+     vaeri innantomt kall a ekkert.
+
+     ATH: FPL birtir `picks` FYRST EFTIR FREST, svo „raunlidid" er alltaf
+     sidasta STADFESTA umferdin (`latestStartedGw`). Sokn eftir opinni
+     umferd skilar 404 — thad er regla leiksins, ekki bilun, og er
+     skjalad i kafla 8.                                                */
+  const refreshOfficial = () => { if (entryId) setLiveTick(t => t + 1); };
   function resetGw(g) {
     setPlan(clearableIn(g));
+    refreshOfficial();
     setBenchSwaps(bs => { const n = { ...bs }; delete n[g]; return n; });
     setChips(c => { const n = { ...c }; for (const k of Object.keys(n)) if (n[k] === g) delete n[k]; return n; });
     setSwapSel(null); setSelling(null); setConfirmReset(null);
@@ -2227,6 +2253,7 @@ export default function App() {
      ============================================================ */
   function resetGwTransfers(g) {
     setPlan(clearableIn(g));
+    refreshOfficial();
     setSwapSel(null); setSelling(null); setConfirmReset(null);
     flash(interp("GW{0} transfers cleared — line-up and chip kept.", [g]));
   }
@@ -2305,6 +2332,7 @@ export default function App() {
      fullyrding sem vid getum ekki stadid vid.                         */
   function resetToOfficial() {
     setPlan(p => p.filter(isInitialSquadPick));
+    refreshOfficial();
     setBenchSwaps({}); setChips({});
     if (official?.cap != null) setCaptain(official.cap);
     if (official?.vice != null) setVice(official.vice);
@@ -3626,7 +3654,7 @@ export default function App() {
                       fxNext3={nextGwFixtures(byId[sq.id]?.team, gw)}
                       captain={captain} vice={vice}
                       csFor={csFor}
-                      dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
+                      dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} diffOf={fixDifficulty}
                       isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                       isSellHint={recommendations.sellIds?.has(sq.id)}
                       onInfo={() => setDetail({ kind:"player", id:sq.id })}
@@ -3672,7 +3700,7 @@ export default function App() {
                     fxNext3={nextGwFixtures(byId[sq.id]?.team, gw)}
                     captain={captain} vice={vice}
                     csFor={csFor}
-                    dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
+                    dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} diffOf={fixDifficulty}
                     isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                     isSellHint={recommendations.sellIds?.has(sq.id)}
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
@@ -3983,9 +4011,27 @@ export default function App() {
                       : <span style={{ ...S.riskTag, background:"#eeeef1", color:"#61616b" }}>{"start"} {rot.pct}%</span>}
                   <span style={S.riskName}>{pp.web_name}</span>
                   <span style={S.riskNews} title={[av.news, injuryById[pp.id]?.reason && `API-Sports: ${injuryById[pp.id].reason}`].filter(Boolean).join("\n")}>
-                    {injuryById[pp.id]?.reason
-                      ? <><b>{injuryById[pp.id].reason}</b>{av.news ? ` · ${av.news.slice(0, 30)}` : ""}</>
-                      : (av.news ? av.news.slice(0, 42) : "")}
+                    {/* ============================================================
+                        AUDGUNIN VAR AD YFIRTAKA HEIMILDINA (4.9.2026)
+                        ============================================================
+                        Hér stod `reason` FEITLETRAD FYRST og FPL-frettin var
+                        stytt i 30 stafi a eftir henni. Thad snyr vid
+                        grunnreglunni sem allt repo-id stendur a:
+                        **FPL-status raedur tiltaekileika; adrar heimildir
+                        mega AUDGA hann, aldrei skipta honum ut** (kafli 6).
+                        Ytri heimildin er ein afleidd tala um LIKAMSHLUTA;
+                        FPL-frettin er thad sem klubburinn sagdi og hun ber
+                        dagsetninguna sem allt annad les.
+                        MAELT 5.9.2026: af 652 leikmonnum eru 172 flaggadir,
+                        73 theirra eru raunveruleg tiltaekileika-mal (hin 99
+                        eru brottfor/lan), og FPL NEFNIR TEGUNDINA I 80,8%
+                        theirra. Audgunin a thvi vid um 14 radir — og hun
+                        var samt sett fremst a thaer ALLAR sem hun snerti.
+                        Nu leidir FPL og audgunin fylgir a eftir.        */}
+                    {av.news
+                      ? <>{av.news.slice(0, 42)}{injuryById[pp.id]?.reason
+                          ? <> {"·"} <b>{injuryById[pp.id].reason}</b></> : ""}</>
+                      : (injuryById[pp.id]?.reason ? <b>{injuryById[pp.id].reason}</b> : "")}
                   </span>
                 </div>
               ));
@@ -5894,7 +5940,11 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
    ============================================================ */
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
-  dc, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
+  /* `sellTenths_` ER FARIN UR SIGNATURNNI LIKA (5.9.2026). Prop sem er
+     send inn og aldrei lesin er daudur kodi sem litur ut eins og
+     eiginleiki — naesti madur les hana og heldur ad spjaldid syni
+     soluverd. `sellOf` stendur afram og skiptaglugginn les hana.     */
+  dc, gwNow, diffOf, isPlanned, isSellHint,
   onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, fxNext3, seasonStarted, seasonGames, clubPlayed, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
@@ -6047,12 +6097,16 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
         <Crest team={team} size={18} style={S.pCrest} />
       </div>
       <div style={{ ...S.pName, ...(bench ? S.pNameBench : {}) }}>{p.web_name}</div>
+      {/* SOLUVERD ER EKKI A SPJALDINU (5.9.2026, beidni notandans).
+          Talan sjalf er OBREYTT og reiknud afram — bankinn, skipta-
+          avinningurinn og skiptaglugginn lesa `sellOf` og mega thad ekki
+          missa. Thad sem for er BIRTINGIN a vellinum: „£6,2 →5,9" er tvaer
+          verd-tolur i sama reit thar sem adeins onnur er verdid sem
+          notandinn kaupir a. Soluverdid er svar vid ANNARRI spurningu
+          („hvad fae eg fyrir hann?") og hun er spurd i skiptaglugganum,
+          thar sem hun stendur afram.                                    */}
       <div style={{ ...S.pPrice, ...(bench ? S.pPriceBench : {}) }}>
         £{(p.now_cost/10).toFixed(1)}
-        {sellTenths_ != null && sellTenths_ < p.now_cost &&
-          <span style={S.pSell} title={interp("Sell price under the 50% rule: £{0}", [(sellTenths_/10).toFixed(1)])}>
-            →{(sellTenths_/10).toFixed(1)}
-          </span>}
       </div>
       {/* ALGILT ÞREP, EKKI afstætt innan liðsins. MÆLT 28.7.2026 á 28.355
           byrjunarliðs-umferðum (tests/ffdr-player-points.mjs kafli E):

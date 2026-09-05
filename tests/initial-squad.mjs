@@ -2398,6 +2398,35 @@ console.log("\n--- S. AFTUR I OPINBERA LIDID — OG FYRIRLIDINN ER PROFSTEINNINN
      "OTENGT: og engin tenging er skrad");
   ok(!offBtn(vOff), "OTENGT: enginn 'my FPL team' hnappur — ekkert opinbert lid er til");
 
+  /* ============================================================
+     ENDURSTILLING SAEKIR RAUNLIDID UPP A NYTT (5.9.2026)
+     ============================================================
+     Beidni notandans: „thegar eg reseta transfer i nyjustu gameweek vill
+     eg ad appid saeki retta actual lidid mitt sem er tengt."
+     `squadOverride` var sott EINU SINNI vid tengingu, svo eftir setu a
+     sidunni gat vollurinn borid gamla mynd — og „reset" skildi hann eftir
+     a stodnudum raunhóp. Profad A HEGDUN: taldar `fpl-picks`-soknir fyrir
+     og eftir smell.                                                    */
+  {
+    let picksCalls = 0;
+    const v = await boot(JSON.stringify({ ...blobO }), {
+      picks: PICKS, gw: 2,
+      onFetch: u => { if (String(u).includes("path=fpl-picks")) picksCalls++; },
+    });
+    const before = picksCalls;
+    ok(before > 0, `forsenda: lidid var sott vid raesingu (${before} soknir)`);
+    const btn = v.q("button").find(b => /↺ transfers/.test(b.textContent || ""));
+    ok(!!btn, "skipta-hnappurinn er their");
+    if (btn) {
+      await v.click(btn);
+      const y = v.q("button").find(b => /^yes$/.test((b.textContent || "").trim()));
+      if (y) await v.click(y);
+    }
+    ok(picksCalls > before,
+      `ENDURSTILLING SAEKIR LIDID UPP A NYTT (${before} -> ${picksCalls} soknir)`,
+      "— an thess situr vollurinn a mynd fra thvi sidan hladnadist");
+  }
+
   /* --- TENGT: hnappurinn birtist og TELUR thad sem hann tekur -------- */
   const v = await boot(JSON.stringify(blobO), { picks: PICKS, gw: 2 });
   const blob = () => JSON.parse(v.raw() || "{}");

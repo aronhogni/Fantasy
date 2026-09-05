@@ -21,9 +21,9 @@
    Keyrsla:  node tests/defcon-shrink.mjs
    ============================================================ */
 import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { DC_P0_PRIOR as PRIOR, DC_P0_PRIOR_BY_TYPE as PRIOR_BY_TYPE } from "../scripts/fetch.mjs";
+import { DC_P0_PRIOR as PRIOR, DC_P0_PRIOR_BY_TYPE as PRIOR_BY_TYPE , dcCountFromSlim } from "../scripts/fetch.mjs";
 import { join } from "node:path";
 
 let pass = 0, fail = 0;
@@ -52,7 +52,16 @@ const decl = clkDecl + "\n" + src.slice(start, end + 3);
 
 /* Smíðar prófumhverfi: DATA-mappa með live/gw{n}.json og fixtures.json. */
 async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), recov = {}, mins = {},
-                           existing = null, eventsOverride = null }) {
+                           existing = null, eventsOverride = null,
+                           /* TVOFOLD UMFERD (4.9.2026): `startsBy` gefur fjolda
+                              byrjana i umferdinni og `explainBy` per-LEIKS
+                              DefCon-stig, eins og FPL sendir i `explain`.
+                              An theirra bar profumhverfid ALDREI tvofalda
+                              umferd og `explain`-leidin var oprofud —
+                              hun hefdi fyrst keyrt i fyrstu tvofoldu umferd
+                              2026/27, sem er nakvaemlega thad sem CLAUDE.md
+                              kafli 5 bannar.                              */
+                           startsBy = {}, explainBy = {} }) {
   const dir = await mkdtemp(join(tmpdir(), "dc-"));
   await mkdir(join(dir, "live"), { recursive: true });
   const gws = Object.values(gwMetrics)[0]?.length ?? 0;
@@ -68,11 +77,16 @@ async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), rec
          STADFESTU thvi gomlu hegdunina thegjandi. `bench` gefur
          varamenn (starts: 0) og `recov` endurheimtir, sem tharf til ad
          profa markmanna-greinina.                                      */
-      .map(([id, m]) => ({ id: +id, stats: {
-        minutes: bench.has(+id) ? 20 : (mins[+id] ?? 90),
-        starts: bench.has(+id) ? 0 : 1,
-        clearances_blocks_interceptions: m[gw - 1],
-        tackles: 0, recoveries: recov[+id] ?? 0 } }));
+      .map(([id, m]) => {
+        const ex = explainBy[+id]?.[gw - 1];
+        return { id: +id, stats: {
+          minutes: bench.has(+id) ? 20 : (mins[+id] ?? 90),
+          starts: bench.has(+id) ? 0 : (startsBy[+id] ?? 1),
+          clearances_blocks_interceptions: m[gw - 1],
+          tackles: 0, recoveries: recov[+id] ?? 0 },
+          ...(ex ? { explain: ex.map(pts => ({ fixture: 1,
+            stats: [{ identifier: "defensive_contribution", points: pts, value: pts ? 10 : 0 }] })) } : {}) };
+      });
     await writeFile(join(dir, "live", `gw${gw}.json`), JSON.stringify({ elements }));
   }
   await writeFile(join(dir, "fixtures.json"), JSON.stringify(fixtures));
@@ -628,18 +642,32 @@ console.log("\u2500".repeat(84));
 {
   console.log("\n=== 7. p0-FORGILDID ER MAELT UR GOGNUNUM ===");
   const DC_P0_PRIOR = PRIOR;
-  const G = JSON.parse(await readFile(new URL("../data/player_gw_2526.json", import.meta.url), "utf8"));
-  const IX = Object.fromEntries(G.stats.map((k, i) => [k, i]));
+  /* ============================================================
+     VIDMIDID FLUTT A HRASKRANA — AFRITID STADFESTI AFRITID (4.9.2026)
+     ============================================================
+     Hér var lesid ur `player_gw_2526.json`, thar sem TVOFOLD UMFERD ER
+     SAMANLOGD i eina rod. Vordurinn endurreiknadi thvi NAKVAEMLEGA SOMU
+     skekkju og smiðurinn bar — `starts++` einu sinni fyrir tvo leiki og
+     summan borin ad throskuldi sem er PER LEIK — og fullyrdingin var
+     GRAEN af thvi ad badar hlidar voru rangar eins.
+     Nakvaemlega mynstrid sem CLAUDE.md kafli 7 skjalar um
+     `buildTeamMetrics`: afrit sem lygur stadfestir sjalft sig.
+     `fpl_player_gw.json` ber EINA ROD PER LEIK, svo throskuldurinn er
+     borinn ad theirri tolu sem hann a vid um. Maelt thar: DEF
+     817/3188 = 0,2563 · MID 583/3580 = 0,1628 · FWD 9/834 = 0,0108.
+     ============================================================ */
+  const W = JSON.parse(await readFile(new URL("../data/fpl_player_gw.json", import.meta.url), "utf8"));
+  const HW = Object.fromEntries(W.header.map((k, i) => [k, i]));
   const TH = { DEF: 10, MID: 12, FWD: 12 };
   const agg = {};
-  for (const row of Object.values(G.players)) {
-    if (!TH[row.p]) continue;                       /* GK eiga engin DC-stig */
-    for (const v of Object.values(row.gw || {})) {
-      if (!((v[IX.starts] ?? 0) > 0 && (v[IX.mins] ?? 0) > 0)) continue;
-      const a = agg[row.p] || (agg[row.p] = { hits: 0, starts: 0 });
-      a.starts++;
-      if ((v[IX.dc] ?? 0) >= TH[row.p]) a.hits++;
-    }
+  for (const v of (W.seasons["2526"] || [])) {
+    const pos = v[HW.pos];
+    if (!TH[pos]) continue;                         /* GK eiga engin DC-stig */
+    if (!((v[HW.starts] ?? 0) > 0 && (v[HW.mins] ?? 0) > 0)) continue;
+    if (v[HW.dc] == null) continue;
+    const a = agg[pos] || (agg[pos] = { hits: 0, starts: 0 });
+    a.starts++;
+    if (v[HW.dc] >= TH[pos]) a.hits++;
   }
   ok(Object.keys(agg).length === 3, `haegt ad maela allar threr stodurnar (${Object.keys(agg).length})`);
   for (const pos of ["DEF", "MID", "FWD"]) {
@@ -657,6 +685,171 @@ console.log("\u2500".repeat(84));
   const oldFwd = 0.10, mFwd = agg.FWD.hits / agg.FWD.starts;
   ok(Math.abs(mFwd - oldFwd) > 0.005,
     `og gamla FWD-gildid 0,10 FELLUR a somu profun (fravik ${Math.abs(mFwd - oldFwd).toFixed(4)})`);
+}
+
+/* ============================================================
+   SVID SEM ER EKKI TIL ALLT TIMABILID VERDUR AD VERA `null`
+   (4.9.2026 — LATENT GILDRA I `player_gw_*.json`)
+   ============================================================
+   `dc`, `cbit`, `recov` og `tack` eru EKKI i FPL-gognum 2019-20 til
+   2024-25: FPL bar thau 2016-19, felldi thau ut og tok thau upp aftur
+   2025-26 (stadfest a vaastav-speglinum). Slim-skrarnar geymdu samt
+   **0** i theim reitum i ollum eldri timabilum, thvi rodin er smiðud
+   med `fill(0)` og vantandi gildi „leggur 0 til summunnar" — sem er
+   RETT fyrir staka rod en RANGT thegar svidid er ekki til yfir hofud.
+
+   Thetta er nakvaemlega gildran sem CLAUDE.md kafli 8 skjalar:
+   *„dc var geymt sem 0, ekki null -> hver leikmadur hefdi fengid hittni
+   0,000"*. Hun var meinlaus i dag ADEINS af thvi ad `defcon_history`
+   gatar a timabils-lista — hlif, ekki lagfaering, og hun fellur um leid
+   og einhver les skrana beint (t.d. i DC-sogu-maelingu).
+
+   Vordurinn er a GOGNUNUM, ekki a kodanum: hver slim-skra verdur ad
+   bera `null` — ekki 0 — i svidum sem baru aldrei gildi thad timabil.
+   ============================================================ */
+/* ============================================================
+   6b. TVOFOLD UMFERD ER TVEIR LEIKIR (4.9.2026)
+   ============================================================
+   Slim-skrain LEGGUR SAMAN leikina i tvofaldri umferd. Gamli kodinn
+   taldi `starts++` einu sinni fyrir tvo og bar SUMMUNA ad throskuldi sem
+   er PER LEIK — badar skekkjur YKJA hittnina, og hun er forgildid fyrir
+   alla hina. MAELT a 2025/26: 76 byrjanir tyndust og 32 draugahittir
+   urdu til (t.d. 10 + 8 = 18 >= 12 „hit" thott hvorugur leikur naedi).
+   ThETTA HEFUR EKKI BITID ENN og bitur i FYRSTU TVOFOLDU UMFERD
+   2026/27 — thess vegna er thad profad a TILBUNUM rodum, ekki bedid
+   eftir deginum (CLAUDE.md kafli 5: „omældur kodi sem fer i gang einn
+   morgun er ekki ásættanlegt").
+   ============================================================ */
+console.log("\n=== 6a. TVOFOLD UMFERD I LIFANDI SMIDNUM (`explain` per leik) ===");
+{
+  /* `live/gwN.json` ber SAMANLAGDAR tolur umferdarinnar, svo i tvofaldri
+     umferd er `starts` TVEIR og `cbit` summa beggja leikja. Gamli kodinn
+     taldi eina byrjun og bar summuna ad throskuldi sem er PER LEIK.
+     FPL sendir hins vegar `explain` sem FYLKI MED EINNI FAERSLU PER LEIK,
+     svo hittirnir eru taldir thadan — nakvaemlega og an thess ad giska. */
+  const els = [{ id: 1, element_type: 2, team: 1 }];
+  /* Ein tvofold umferd: summa 18 (>= 10, svo gamli kodinn hefdi sagt
+     „1 byrjun, 1 hittur"), en `explain` segir ad ANNAR leikurinn gaf
+     stig og hinn ekki -> 2 byrjanir, 1 hittur.                        */
+  const a = await runDefcon({ gwMetrics: { 1: [18] }, els,
+    startsBy: { 1: 2 }, explainBy: { 1: [[2, 0]] } });
+  const r = (a.written?.obj?.players || [])[0];
+  ok(r && r.starts === 2 && r.threshold_hits === 1,
+    `tvofold: 2 byrjanir og 1 hittur ur \`explain\` (${JSON.stringify(r && { s: r.starts, h: r.threshold_hits })})`,
+    "— gamli kodinn gaf 1 byrjun og 1 hitt");
+  /* BADIR leikir gafu stig -> 2 hittir.                                */
+  const b = await runDefcon({ gwMetrics: { 1: [24] }, els,
+    startsBy: { 1: 2 }, explainBy: { 1: [[2, 2]] } });
+  const rb = (b.written?.obj?.players || [])[0];
+  ok(rb && rb.starts === 2 && rb.threshold_hits === 2,
+    `badir leikir gafu stig -> 2 af 2 (${JSON.stringify(rb && { s: rb.starts, h: rb.threshold_hits })})`);
+  /* HVORUGUR gaf stig thott summan se yfir throskuldi — thetta er
+     draugahitturinn sem gamli kodinn bjo til (10 + 8 = 18).           */
+  const c = await runDefcon({ gwMetrics: { 1: [18] }, els,
+    startsBy: { 1: 2 }, explainBy: { 1: [[0, 0]] } });
+  const rc = (c.written?.obj?.players || [])[0];
+  ok(rc && rc.starts === 2 && rc.threshold_hits === 0,
+    `summa 18 en HVORUGUR leikur nadi -> 0 hittir (${JSON.stringify(rc && { s: rc.starts, h: rc.threshold_hits })})`,
+    "— 10 + 8 er ekki hittur");
+  /* HITTUR I LEIK SEM HANN BYRJADI EKKI ma ekki fara i teljara sem
+     hefur BYRJANIR i nefnara.                                          */
+  const d = await runDefcon({ gwMetrics: { 1: [18] }, els,
+    startsBy: { 1: 1 }, explainBy: { 1: [[2, 2]] } });
+  const rd = (d.written?.obj?.players || [])[0];
+  ok(rd && rd.starts === 1 && rd.threshold_hits === 1,
+    `tveir hittir en adeins ein byrjun -> teljarinn er thakadur vid 1 `
+    + `(${JSON.stringify(rd && { s: rd.starts, h: rd.threshold_hits })})`);
+  /* VARALEIDIN: skra AN `explain` fellur a gamla samlagningar-profid og
+     thad er RETT fyrir einfalda umferd.                                */
+  const e = await runDefcon({ gwMetrics: { 1: [12] }, els });
+  const re = (e.written?.obj?.players || [])[0];
+  ok(re && re.starts === 1 && re.threshold_hits === 1,
+    "an `explain` gildir gamla leidin (einfold umferd, rett svar)");
+}
+
+console.log("\n=== 6b. TVOFOLD UMFERD — SUMMA ER EKKI EINN LEIKUR ===");
+{
+  const inv = { starts: 0, dc: 1 };
+  const one = k => ({ 1: [1, k] });
+  ok(JSON.stringify(dcCountFromSlim(one(12), inv, 12)) === '{"starts":1,"hits":1,"undecided":0}',
+    "einfold umferd yfir throskuldi -> 1 byrjun, 1 hittur");
+  ok(JSON.stringify(dcCountFromSlim(one(11), inv, 12)) === '{"starts":1,"hits":0,"undecided":0}',
+    "einfold umferd undir throskuldi -> 1 byrjun, 0 hittir");
+  /* TVOFOLD, SUMMA UNDIR ThROSKULDI: HVORUGUR leikur gat nad honum, svo
+     thetta ER akvardad — tvaer byrjanir, enginn hittur.                */
+  ok(JSON.stringify(dcCountFromSlim({ 1: [2, 9] }, inv, 12)) === '{"starts":2,"hits":0,"undecided":0}',
+    "tvofold med summu UNDIR throskuldi -> 2 byrjanir, 0 hittir (akvardad)");
+  /* TVOFOLD, SUMMA YFIR ThROSKULDI: gaeti verid 0, 1 eda 2 hittir.     */
+  const amb = dcCountFromSlim({ 1: [2, 18] }, inv, 12);
+  ok(amb.starts === 0 && amb.hits === 0 && amb.undecided === 2,
+    `tvofold med summu YFIR throskuldi er OAKVARDAD og fer UT UR BADUM `
+    + `(${JSON.stringify(amb)})`,
+    "— 10+8 er ekki hittur, og ad telja hann sem hitt var gamla villan");
+  /* SAMSETT DAEMI ThAR SEM SVARID ER REIKNAD I HONDUNUM.               */
+  const mix = dcCountFromSlim({ 1: [1, 12], 2: [2, 9], 3: [2, 25], 4: [1, 4], 5: [0, 99] },
+    inv, 12);
+  ok(JSON.stringify(mix) === '{"starts":4,"hits":1,"undecided":2}',
+    `samsett rod: 4 byrjanir, 1 hittur, 2 oakvardadar (${JSON.stringify(mix)})`);
+  /* NULL ER EKKI NULL — timabil an DefCon telur hvorki byrjun ne miss. */
+  ok(JSON.stringify(dcCountFromSlim({ 1: [1, null] }, inv, 12)) === '{"starts":0,"hits":0,"undecided":0}',
+    "`dc: null` (timabil an DefCon) telur EKKI sem miss");
+  /* OG A RAUNGOGNUM: 2025/26 BER raunverulegar tvofaldar umferdir, svo
+     kaflinn er ekki adeins um tilbuin gogn.                            */
+  const G2 = JSON.parse(readFileSync(new URL("../data/player_gw_2526.json", import.meta.url), "utf8"));
+  const IX2 = Object.fromEntries(G2.stats.map((k, i) => [k, i]));
+  let dgw = 0;
+  for (const row of Object.values(G2.players))
+    for (const v of Object.values(row.gw || {})) if ((v[IX2.starts] ?? 0) >= 2) dgw++;
+  ok(dgw > 20, `raungogn bera ${dgw} tvofaldar byrjunar-radir — reglan er ekki fraedileg`);
+}
+
+console.log("\n=== 7. NULL ER EKKI NULL I SLIM-SKRANUM ===");
+{
+  const SEASONS = ["2122", "2223", "2324", "2425", "2526"];
+  const DEF_FIELDS = ["dc", "cbit", "recov", "tack"];
+  let checked = 0;
+  for (const key of SEASONS) {
+    let j;
+    try { j = JSON.parse(readFileSync(new URL(`../data/player_gw_${key}.json`,
+      import.meta.url), "utf8")); } catch { continue; }
+    const idx = Object.fromEntries(j.stats.map((f, i) => [f, i]));
+    const rows = [];
+    for (const e of Object.values(j.players || {}))
+      for (const r of Object.values(e.gw || {})) rows.push(r);
+    if (!rows.length) continue;
+    checked++;
+    for (const f of DEF_FIELDS) {
+      const i = idx[f];
+      if (i == null) continue;
+      const nonNull = rows.filter(r => r[i] != null);
+      const nonZero = nonNull.filter(r => r[i] !== 0);
+      /* Tvo loglegt astand og EITT olöglegt:
+         · svidid er til  -> einhver rod ber gildi > 0,
+         · svidid er ekki til -> ALLAR radir eru null.
+         Olöglegt: allar radir eru 0 — tha lítur „engin varnaradgerd"
+         eins ut og maeling.                                          */
+      const allZero = nonNull.length > 0 && nonZero.length === 0;
+      ok(!allZero,
+        `${key}.${f}: ekki 0 i ollum ${rows.length} rodum `
+        + `(${nonNull.length} med tolu, ${nonZero.length} yfir 0)`,
+        "— svid sem var ALDREI til a ad vera null, ekki 0");
+    }
+  }
+  ok(checked >= 4, `THEKJA: ${checked} slim-skrar lesnar (>= 4)`,
+    "— fullyrding sem heimsaekir engar skrar er tom");
+  /* OG SVIDID VERDUR AD VERA TIL ThAR SEM ThAD A AD VERA — annars
+     stodst allt hér ad ofan af thvi ad ekkert var lesid.             */
+  try {
+    const j = JSON.parse(readFileSync(new URL("../data/player_gw_2526.json",
+      import.meta.url), "utf8"));
+    const i = j.stats.indexOf("dc");
+    const rows = [];
+    for (const e of Object.values(j.players || {}))
+      for (const r of Object.values(e.gw || {})) rows.push(r);
+    ok(rows.filter(r => r[i] > 0).length > 500,
+      `2526.dc BER raunveruleg gildi (${rows.filter(r => r[i] > 0).length} radir > 0)`,
+      "— annars er kaflinn ad profa tomleika");
+  } catch { ok(false, "player_gw_2526.json er lesanleg"); }
 }
 
 console.log(`\nDC-AFTURVIRKNI: ${pass} stóðust, ${fail} féllu`);

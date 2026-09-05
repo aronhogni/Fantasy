@@ -48,6 +48,12 @@ globalThis.fetch = async (url) => {
     return { ok: true, status: 200, json: async () => ({
       updated: "x", players: [
         { fpl_id: 496, name_api: "A. Kinsky", team_api: "Tottenham", type: "Questionable", reason: "Knock" },
+        /* MADUR SEM FPL FLAGGAR LIKA — an hans var rod-reglan i
+           ahaettulistanum (FPL leidir, audgunin fylgir) OPROFUD, thvi
+           Kinsky ber `status: "a"` og lendir a varfaernu linunni i stad
+           ahaettulistans. Mosquera (11) ber „Unspecified injury - 75%",
+           sem er nakvaemlega tilfellid sem audgunin a ad baeta vid.   */
+        { fpl_id: 11, name_api: "M. Mosquera", team_api: "Arsenal", type: "Questionable", reason: "Hamstring" },
       ], unmatched: [] }) };
   }
   const raw = url.match(/raw\.githubusercontent\.com\/aronhogni\/Fantasy\/main\/data\/(.+)$/);
@@ -299,6 +305,39 @@ ok(text().includes("API-Sports records:") && text().includes("Knock"),
 ok(/✈\d+/.test(text()), "ferðalengd (✈ km) birtist á leikjaröðum yfirlitsins");
 const travelChip = [...container.querySelectorAll("span")].find(el => /✈\d+/.test(el.textContent) && el.title);
 ok(!!travelChip && /km \(as the crow flies\)/.test(travelChip.title), "ferða-tooltip útskýrir km og loftlínu");
+/* ============================================================
+   AUDGUNIN MA EKKI YFIRTAKA HEIMILDINA (5.9.2026)
+   ============================================================
+   Radar-lisinn birti `reason` FEITLETRADAN FYRST og stytti FPL-frettina
+   i 30 stafi a eftir honum — thad snyr vid grunnreglunni **FPL-status
+   raedur tiltaekileika; adrar heimildir mega AUDGA hann, aldrei skipta
+   honum ut** (CLAUDE.md kafli 6).
+   MAELT 5.9.2026: FPL nefnir tegundina sjalft i 80,8% tiltaekileika-rada,
+   svo audgunin a vid um ~2% leikmanna — og hun var samt sett fremst a
+   allar thaer radir sem hun snerti.                                    */
+{
+  const row = [...container.querySelectorAll("div")]
+    .filter(el => (el.textContent || "").includes("Mosquera")
+                && (el.textContent || "").includes("Hamstring"))
+    .sort((a, b) => a.textContent.length - b.textContent.length)[0];
+  ok(!!row, "ahaettu-rod Mosquera med audgun finnst",
+    "— an hennar maelir naesta fullyrding ekkert");
+  if (row) {
+    const t = row.textContent || "";
+    const iNews = t.indexOf("Unspecified injury");
+    const iEnrich = t.indexOf("Hamstring");
+    ok(iNews >= 0, `FPL-frettin sjalf er a skjanum ("${t.slice(0, 60)}")`);
+    ok(iNews >= 0 && iEnrich > iNews,
+      `FPL LEIDIR og audgunin FYLGIR (news @${iNews}, audgun @${iEnrich})`,
+      "— audgunin var adur feitletrud FREMST");
+    /* OG FPL-FRETTIN MA EKKI VERA STYTT NIDUR I 30 STAFI ThEGAR
+       AUDGUNIN ER TIL — hun var thad adur.                            */
+    ok(t.includes("75% chance"),
+      "og hun er EKKI stytt nidur i 30 stafi thott audgunin se til",
+      `— "${t.slice(0, 80)}"`);
+  }
+}
+
 ok(!text().includes("undefined"), "ekkert 'undefined' í yfirlitinu");
 // Yfirlitsglugginn er SÍÐASTA "✕"-ið í DOM (fjarlægja-hnappur andstæðings
 // í hliðarstikunni notar sama tákn og kemur á undan — fyrsta ✕-ið eyddi
