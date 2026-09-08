@@ -10,6 +10,8 @@ import Teams from "./Teams.jsx";
 import Compare from "./Compare.jsx";
 import Leagues from "./Leagues.jsx";
 import Rotation from "./Rotation.jsx";
+import BuySell from "./BuySell.jsx";
+import { BS_HORIZON } from "./buysell.js";
 import { RAW } from "./dataUrl.js";
 /* Toluranar i skipta-glugganum koma UR SOMU SKRA sem listinn og stigataflan
    nota (src/stats.js) — ekki afritadar formulur. Sama regla sem gildir um
@@ -2911,6 +2913,46 @@ export default function App() {
     return +gain.toFixed(1);
   }
 
+  /* ============================================================
+     FFDR-BRAUTIN FYRIR KAUP-/SOLU-LISTANN
+     ============================================================
+     Notandinn bad um ad appid horfi „a leikmann sem eg aetla ad selja og
+     svo sem eg aetla ad kaupa serstaklega med tilliti til FFDR", svo
+     BADAR brautir eru synilegar undir hverri tillogu.
+     ThETTA ER SAMA TALA OG SPJOLDIN BERA — `fixDifficulty` og `tierOf`
+     eru flutt inn, ekki endurreiknud. Onnur smid vaeri annad likan
+     undir sama nafni (sbr. `buildTeamMetrics`).
+     AUD UMFERD FAER SITT EIGID HOLF, ekki hlutlausan lit: hun er 0 stig
+     og ma ekki lita ut eins og medal-leikur.                          */
+  const bsPathOf = useCallback(id => {
+    const p = byId[id];
+    if (!p) return null;
+    const cells = [];
+    for (let g = gw; g < gw + BS_HORIZON && g <= maxGw; g++) {
+      const list = fixByTeamGw[p.team]?.[g] || [];
+      if (!list.length) {
+        cells.push({ opp: "—", bg: "transparent", fg: C.text2,
+                     title: `GW${g}: blank gameweek — no match, no points` });
+        continue;
+      }
+      /* TVOFOLD UMFERD ER TVEIR LEIKIR. Holfid ber thann fyrri og "+",
+         thvi tvo holf undir einni umferd laesu eins og tvaer umferdir —
+         en thogn um seinni leikinn vaeri verri.                        */
+      const f = list[0];
+      const d = fixDifficulty(p.team, f, p.element_type);
+      const t = tierOf(d);
+      cells.push({
+        opp: (oppLabel(teamById[f.opp]?.short, f.home) || "?")
+             + (list.length > 1 ? "+" : ""),
+        bg: TIER_BG[t], fg: TIER_FG[t],
+        title: `GW${g}: ${list.map(x => oppLabel(teamById[x.opp]?.short, x.home)).join(", ")}`
+               + ` — FFDR ${d == null ? "—" : d}`
+               + (list.length > 1 ? " (double gameweek)" : ""),
+      });
+    }
+    return cells;
+  }, [byId, gw, maxGw, fixByTeamGw, fixDifficulty]);
+
   /* ---------- CHIP-PLÁSS úr FPL-API ----------
      Hvert "pláss" er eitt chip í einum hálfleik, með gildistíma úr API-inu.
      Fallback ef API-gögnin vantar: sömu reglur harðkóðaðar.                */
@@ -4573,6 +4615,26 @@ export default function App() {
           </section>
           );
           })()}
+
+          {/* ============================================================
+              KAUP-/SOLU-LISTINN — UNDIR LEIKJUNUM, ThVI HANN ER UM ThA
+              ============================================================
+              Notandinn: „Settu thetta nyja reccomendation undir fixtures."
+              Hann stendur beint undir FFDR-toflunni af thvi ad hann svarar
+              spurningu SEM HUN VEKUR: taflan segir hverjir eiga letta
+              leiki, listinn segir HVENAER a ad skipta theim inn.
+              `ep` er SAMA fall og vollurinn notar (`expPoints`), svo tvaer
+              tolur undir einu heiti geta ekki ordid til.               */}
+          <BuySell
+            players={players || []}
+            squadIds={[...squadIds]}
+            ep={expPoints}
+            pathOf={bsPathOf}
+            gw={gw}
+            maxGw={maxGw}
+            freeTransfers={transferCost[gw]?.ftAvailable ?? 1}
+            S={S}
+          />
 
           {/* Andstæðingar — sérstöðu-samanburður */}
           <section style={S.card}>
