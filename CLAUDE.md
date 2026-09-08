@@ -76,6 +76,7 @@ keyra nákvæmlega sama kóða og appið birtir.** Ekki afrita formúlur inn í
 | `advisor.js` — kaup-ráðgjöfin | `SetPieces.jsx` · `Leagues.jsx` · `Imminent.jsx` |
 | `bsd.js` — BSD-samlagning | `ShotMap.jsx` · `Icons.jsx` · `Pitch.jsx` |
 | `buywindow.js` — kaup-gluggar per leikmann | `BuyWindows.jsx` |
+| `swaptiming.js` — HVENÆR á að skipta · `buysell.js` — pörun og vikuröð | `BuySell.jsx` |
 
 > **ENGAR LÍNUTÖLUR HÉR — ÞÆR REKA.** Taflan bar áður nákvæman línufjölda
 > per skrá; hann var **úreltur innan sólarhrings** (t.d. `App.jsx` 4.162 ->
@@ -537,6 +538,54 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   · **`MIN_WINDOW = 3` og `MAX_WINDOWS = 3` eru UI-afmarkanir**, eins og
     verðþakið í `rotation.js` — ekki hluti líkansins. Ekkert í FFDR,
     `rankScore` né væntum stigum les þessa skrá.
+- **KAUP-/SÖLU-LISTINN (`swaptiming.js` + `buysell.js`, 8.9.2026) SVARAR
+  „HVENÆR", EKKI „HVERN" — og hálft svarið var ÞEGAR í appinu.**
+  Notandinn: *„það hlýtur að vera réttur tími ef við horfum sérstaklega á
+  FFDR. Þegar leikmaður sem ég ætla að selja á erfitt program og sem ég ætla
+  að kaupa létt program."* Innsæið er rétt og `expPointsFor` ber FFDR-
+  margfaldarann, svo `transferNet` er ÞEGAR „skiptu þegar leikirnir snúast".
+  Það er VIÐMIÐIÐ sem þetta þurfti að slá, ekki niðurstaða. Opna spurningin
+  var sú gagnstæða: **borgar sig að BÍÐA?**
+  · **Mælt á 5 tímabilum, 140 ákvörðunar-punktum, 8.400 pörum** með FFDR
+    FROSIÐ við hvern punkt. Laugin er þau pör sem appið metur ÞEGAR jákvæð
+    (3.267) — „hvenær" er aðeins spurning um skipti sem eru þess virði.
+    Reglan segir SKIPTU NÚNA í 78–92%, og í **92,1%** þeirra þar sem sá sem
+    kemur inn á léttari leik þessa viku — sem er einmitt dæmi notandans.
+    Bið borgar sig í **17,1%** paranna og er þá verð **+1,136 CI [0,681,
+    1,573]**; á hreinni leikjaþyngd (án blanks og tvöfaldra) **11,0%** og
+    **+0,841 CI [0,274, 1,348]**, 4 ár af 5 í báðum.
+  · **ENGIN ORAKEL-TALA MÁ BIRTAST.** „Besta vikan hefði verið verð +3,08"
+    er **100% hávaði**: sama orakel á STOKKUÐUM vikum gefur +3,12. Hámark
+    yfir fjóra hávaða-kosti er alltaf jákvætt.
+  · **FFDR-LITURINN ER EKKI AÐAL-DRIFKRAFTURINN** þótt spurningin hafi verið
+    um hann: ~72% af tímasetningar-virðinu eru **blank og tvöfaldar
+    umferðir**, og eiginlegt framlag litarins er **+0,072 CI [0,006, 0,151]**
+    — raunverulegt og þunnt. Báðar brautir eru samt SÝNDAR, því það var
+    beðið um þær og þær eru satt samhengi.
+  · **`SWAP_KMAX = 3` ER MÆLT** (nested val velur k3 í öllum fimm foldum).
+    **`SWAP_TAU = 0,25` ER STILLING**, ekki mældur fasti: öll 21 afbrigði
+    hafa CI sem útiloka null og ávinningurinn fellur einrænt 0,257 -> 0,088
+    þegar tau fer 0 -> 2. Hún MÁ ALDREI birtast sem mæld tala og skjárinn
+    segir það sjálfur.
+  · **STAÐAN ER HART SKILYRÐI, EKKI STUÐULL.** Skipti eru líkt fyrir líkt,
+    svo par úr sitt hvorri stöðu er tillaga um aðgerð sem er EKKI HÆGT að
+    framkvæma — verri en engin tillaga, því hún lítur út eins og ráð.
+  · **ÞÖGN ER SVAR Í TVEIMUR ADSKILDUM MYNDUM.** „Bíddu tvær vikur" og
+    „ekki þess virði" eru SITT HVAÐ; síðara var beinlínis beðið um. Veik
+    skipti fá ENGA viku — að setja þau í röð væri að breyta þögn í tillögu.
+    Þröskuldurinn (`SWAP_WEAK_NET = 3`) er KVÖRÐUN: undir ~+3 spáðum stigum
+    á sex umferðum er raunútkoman **hlutkesti** (49–52% jákvæð) meðan hún er
+    65,9% yfir +5.
+  · **MEIÐSLI VERÐA AÐ SEGJA SIG SJÁLF.** Rásin liggur gegnum `expPointsFor`
+    (sem ber tiltækileika) og hún ein er EKKI NÓG: flaggaður maður fær lægri
+    vænt stig, nettóið fellur undir þröskuldinn og spjaldið segði „No change
+    worth making" — SATT um töluna og VILLANDI um ástæðuna. Flaggið ber
+    **FPL-fréttina sjálfa** (kafli 6: FPL-status ræður, engin ágiskun).
+    Sama ætt og E0-núllin: **rétt tala, röng merking.**
+  · **MÆLINGIN KEYRÐI MEÐ `avail = 1`** — engin tiltækileika-saga er til í
+    repo-inu (`data/history/` er verð-eingöngu frá 25.7.2026). Að ráðið
+    uppfærist við nýjar fréttir er eiginleiki PIPELINE-unnar, ekki
+    niðurstaða héðan, og notan segir það.
 - **Byrjunar-líkurnar eru KVÖRÐUN, ekki véfrétt.** Nákvæmnin (88,0%) er sú sama
   og hjá „byrjaði síðast"; ábatinn er Brier −24% og **bekkjar-gildran**: lægsti
   tíundarhlutinn fangar 42–49% þeirra sem falla á bekk (lyfting 2,09×,
@@ -709,6 +758,7 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `playerlist-sort.mjs` | 121 dálka-áttir lesnar úr DOM. **Tómt gildi má aldrei sitja á toppnum** ef dálkurinn hefur tölur, og skrun í botninn sannar að þau fóru NIÐUR en hurfu ekki. Áttin er lesin af örinni, ekki gefin sér |
 | `fetch-entry.mjs` | **Að pipeline-an keyri þegar hún er keyrð, og AÐEINS þá.** Keyrir raunverulegt afrit af `scripts/fetch.mjs` í nýju ferli, báðar leiðir — beint og innflutt — með `main()` skipt út fyrir prentun. Bilun í því skilyrði er **þögul**: græn keyrsla, útgangsstaða 0, engin skrif |
 | `buy-windows.mjs` | **Kaup-gluggarnir.** Kafli A9b ver afstæða litakvarðann: *flöt leikjaskrá er ÖLL hlutlaus* (fellur ef vörpunin teygir í stað þess að færa) og *hver röð án góðs leiks á algilda kvarðanum hefur góðan á hans eigin* — lesið AF SKJÁNUM á öllum 592 röðum (36 slíkar, allar Hull). Kafli A er á TILBÚNUM röðum þar sem svarið er þekkt fyrirfram (erfiður leikur inni í glugga klýfur hann EKKI · auð umferð má spanna en aldrei vera endi · óvís umferð KLYFUR · flöt röð fær ENGAN glugga); A8 er **300 slembnar raðir gegn óháðum uppteljara** — hann fann villuna í valröðinni (tveir mælikvarðar á sömu ákvörðun). A10 er á RAUNGÖGNUM og fullyrðir að staðan skipti máli (DEF≠FWD í 17 af 20) — væri það 0 væri sýnin óþörf. Kafli B les tímalínuna AF SKJÁNUM: liturinn = `tierOf`, græni ramminn, og **enda-invariantið** (bekkjar-punktur má aldrei sitja á enda glugga). **Sex stökkbreytingar felldar**, þar á meðal `border`-styttingin sem gaf React-viðvörun |
+| `buy-sell.mjs` | **Kaup-/sölu-listinn.** Kafli A er á TILBÚNUM gögnum þar sem svarið er þekkt fyrirfram — raunveruleg leikjaskrá getur ekki framkallað árekstur tveggja skipta í sömu viku þegar mér hentar, og prófið má ekki bíða eftir þeim degi. Prófsteinarnir: **staðan er HART skilyrði** (DEF út + FWD inn gefur ENGA tillögu og báðir eru TALDIR) · **vantandi ep er ekki 0** (ein vantandi vika gerir parið óvíst — væri hún talin sem 0 yrði parið EFSTA tillagan) · **veik skipti fá enga viku** (þögn má ekki verða tillaga) · **færsla milli vikna er MERKT** · hver maður einu sinni. Kafli B les spjaldið AF SKJÁNUM með seeduðu `localStorage` og krefst þess að **flaggaður maður beri FPL-fréttina sjálfa** sem titil. **Átta stökkbreytingar felldar.** Tvær tómar fullyrðingar fundust í prófinu sjálfu: `|| true` í þrískiptu skilyrði, og kafli sem endurteiknaði á SAMA `root` þótt spjaldið lesi `localStorage` í mount-effekti — hann mældi því GAMLA parið meðan hann taldi sig mæla það nýja |
 | `playerlist-narrow.mjs` | **Símahamurinn — sem ekkert próf hafði séð.** Stillir `innerWidth` OG `matchMedia` á 390 px svo báðar greinar keyri; mælir dálkabreiddir og að andlitsmyndin hverfi en liðsmerkið ekki |
 | `error-boundary.mjs` | Prófar ÚTGÖNGUNA, ekki bara að kassinn birtist |
 | `monkey.mjs` | 800 handahófskenndir smellir (4 föst fræ). **NET, EKKI VÖRÐUR — og það er mælt:** bilun á algengri braut (Teams-flipinn) fannst í báðum fræjum, en bilun á djúpu marki (röðun eftir Verði) **slapp í gegn í 800 smellum**. Segðu því aldrei „apinn ver X"; hver uppgötvun á að festast í alvöru verði |
