@@ -16,6 +16,7 @@
    Keyrsla:  node tests/consistency.mjs
    ============================================================ */
 import { readFileSync, existsSync } from "node:fs";
+import { consistencyFromSlim } from "../scripts/fetch.mjs";
 
 const D = new URL("../data/", import.meta.url).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -143,6 +144,58 @@ console.log("─".repeat(84));
     ok(!/aron|_hit4|_blank|consist/i.test(call),
       `kallið á rankScore í ${rel.replace("../src/", "")} sendir ekki jöfnuð inn`);
   }
+}
+
+/* ============================================================
+   6. TVOFOLD UMFERD ER TVEIR LEIKIR (5.9.2026)
+   ============================================================
+   `computeConsistency` taldi UMFERDIR sem leiki og bar SUMMU beggja
+   leikja ad throskuldum sem eru PER LEIK (>= 4 „hittur", <= 2 „blank").
+   Badir DefCon-smidirnir baru somu villu og voru lagfaerdir 4.9.2026;
+   thessi systkina-smiður var ekki sopadur med.
+   MAELT a committudum gognum: 2021/22 taldi **9.788 leiki thar sem their
+   voru 10.485** og bjó til **443 drauga-hitti** (2+2 = 4 talid sem einn
+   4+ hittur). Stig/leik skrifadist 3,210 i stad ~2,99.
+   OG VORDURINN GAT EKKI SED ThAD: hann endurreiknadi ur SOMU samanlogdu
+   skra, svo baðir teljarar voru per umferd og heldust innbyrdis
+   samkvaemir — afritid stadfesti afritid (CLAUDE.md 7).
+   Reglan er nu HREINT FALL og profud a tolum thar sem svarid er thekkt.
+   ============================================================ */
+console.log("\n=== 6. TVOFOLD UMFERD — SUMMA ER EKKI EINN LEIKUR ===");
+{
+  const inv = { mins: 0, pts: 1, mp: 2 };
+  const c = (mins, pts, mp) => consistencyFromSlim({ 1: [mins, pts, mp] }, inv);
+  const eqj = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  ok(eqj(c(90, 5, 1), { games: 1, hit4: 1, blank: 0, sum: 5, undecided: 0 }),
+    "einfold umferd yfir throskuldi -> 1 leikur, 1 hittur");
+  ok(eqj(c(90, 2, 1), { games: 1, hit4: 0, blank: 1, sum: 2, undecided: 0 }),
+    "einfold umferd <= 2 -> blank");
+  /* SUMMA TVEGGJA LEIKJA SKER ADEINS UR ThEGAR HUN ER <= 2: tha voru
+     BADIR leikir <= 2 og hvorugur nadi 4.                            */
+  ok(eqj(c(180, 2, 2), { games: 2, hit4: 0, blank: 2, sum: 2, undecided: 0 }),
+    "tvofold med summu <= 2 -> TVEIR leikir, tvo blonk (akvardad)");
+  /* 5 gaeti verid 5+0 (einn hittur) eda 3+2 (enginn) — thvi UT UR BADUM. */
+  const amb = c(180, 5, 2);
+  ok(amb.games === 0 && amb.hit4 === 0 && amb.undecided === 2,
+    `tvofold med summu > 2 er OAKVARDAD og fer ut ur BADUM (${JSON.stringify(amb)})`,
+    "— 2+2 talid sem 4+ hittur var gamla villan");
+  ok(eqj(c(0, 9, 1), { games: 0, hit4: 0, blank: 0, sum: 0, undecided: 0 }),
+    "engar minutur -> enginn leikur");
+  /* AN `mp` FELLUR HUN A GOMLU HEGDUNINA og thad er RETT: eldri skrar
+     bera ekki svidid, og ein umferd er tha besta agiskunin sem til er. */
+  ok(eqj(consistencyFromSlim({ 1: [90, 5] }, { mins: 0, pts: 1 }),
+        { games: 1, hit4: 1, blank: 0, sum: 5, undecided: 0 }),
+    "skra an `mp` telur eina umferd sem einn leik (afturhaef)");
+  /* OG `mp` ER RAUNVERULEGA I SKRANUM — annars vaeri allt hér ad ofan
+     satt um svid sem er ekki til.                                     */
+  const G = JSON.parse(readFileSync(new URL("../data/player_gw_2425.json", import.meta.url), "utf8"));
+  const IX = Object.fromEntries(G.stats.map((k, i) => [k, i]));
+  ok(IX.mp != null, "`mp` er i slim-skranni");
+  let dgw = 0;
+  for (const row of Object.values(G.players))
+    for (const g of Object.values(row.gw || {})) if ((g[IX.mp] ?? 0) >= 2) dgw++;
+  ok(dgw > 50, `og hun finnur raunverulegar tvofaldar umferdir (${dgw})`,
+    "— agiskun ur `starts`/minutum MISSTI 22% theirra");
 }
 
 console.log(`\nARON-STUÐULL: ${pass} stóðust, ${fail} féllu`);

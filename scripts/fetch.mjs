@@ -1024,7 +1024,22 @@ function liveRoundStatus({ live, matches }) {
 async function fetchLiveRounds({ events, fixtures }) {
   const evs = Array.isArray(events) ? events : [];
   const fxs = Array.isArray(fixtures) ? fixtures : [];
-  const playedIn = gw => fxs.filter(f => f.event === gw && f.finished).length;
+  /* ============================================================
+     `finished` FLETTIST ~3 DOGUM OF SEINT — OG ThESSI VORDUR SLOKKTI
+     ThVI A SER I NAKVAEMLEGA SINUM EIGIN GLUGGA (5.9.2026)
+     ============================================================
+     `playedIn` var `f.finished`, svo a leikdegi taldi hun **0 spilada
+     leiki** medan atta voru bunir. Thekju-hlidid ser tha engan leik ad
+     bera skrana vid, skilar „completeness cannot be judged" og skrar
+     GRAENA rod — nakvaemlega thann dag sem hun er til fyrir.
+     MAELT 5.9.2026: GW3 bar `finished: 0` en `finished_provisional: 8`,
+     og stodu-rodin sagdi „2 finished gameweeks - 1 written, 2 sealed
+     complete" medan `live/gw3.json` bar EINN leik.
+     Reglan er su sama og kafli 1 setur um allt annad: leikur telst
+     spiladur vid `finished_provisional`, og `finished` er
+     stadfestingin sem kemur throm dogum sidar.                        */
+  const playedIn = gw => fxs.filter(f => f.event === gw
+    && (f.finished || f.finished_provisional)).length;
   const onDisk = async (path, matches) => {
     if (!existsSync(`${DATA}/${path}`)) return null;
     try { return liveRoundStatus({ live: JSON.parse(await readFile(`${DATA}/${path}`, "utf8")), matches }); }
@@ -1385,6 +1400,22 @@ async function fetchFPL() {
 
    Somu afturvirkni og DC-hittnin (K=10 ad stodu-medaltali) svo madur med
    3 leiki fai ekki 100%.                                              */
+/* Hreint og profanlegt — sama astaeda og `dcCountFromSlim`: reglan
+   kviknar adeins a tvofaldri umferd, sem er sjaldgaef, svo hun vaeri
+   annars fyrst reynd einn morgun i framtidinni.                       */
+export function consistencyFromSlim(gwMap, inv) {
+  let games = 0, hit4 = 0, blank = 0, sum = 0, undecided = 0;
+  for (const g of Object.values(gwMap || {})) {
+    if ((g?.[inv.mins] ?? 0) <= 0) continue;            // ADEINS leiknir leikir
+    const pts = g[inv.pts] ?? 0;
+    const mp = inv.mp != null ? (g[inv.mp] ?? 1) : 1;
+    if (mp <= 1) { games++; sum += pts; if (pts >= 4) hit4++; if (pts <= 2) blank++; continue; }
+    if (pts <= 2) { games += mp; sum += pts; blank += mp; continue; }   // akvardad
+    undecided += mp;                                     // summan sker ekki ur
+  }
+  return { games, hit4, blank, sum, undecided };
+}
+
 async function computeConsistency() {
   const K = 10;
   const seasons = {};
@@ -1398,15 +1429,36 @@ async function computeConsistency() {
     if (inv.pts == null || inv.mins == null) continue;
     const out = {};
     for (const [code, row] of Object.entries(d.players || {})) {
-      let games = 0, hit4 = 0, blank = 0, sum = 0;
-      for (const g of Object.values(row.gw || {})) {
-        if ((g[inv.mins] ?? 0) <= 0) continue;          // ADEINS leiknir leikir
-        const pts = g[inv.pts] ?? 0;
-        games++; sum += pts;
-        if (pts >= 4) hit4++;
-        if (pts <= 2) blank++;
-      }
-      if (games > 0) out[code] = { pos: row.p, games, hit4, blank, sum };
+      /* ============================================================
+         TVOFOLD UMFERD ER TVEIR LEIKIR — ThRIDJI SMIDURINN MED SOMU
+         VILLU (5.9.2026)
+         ============================================================
+         `games++` taldi EINA umferd thar sem leikirnir voru tveir, og
+         `pts` — SUMMA beggja — var borid ad throskuldum sem eru PER LEIK
+         (>= 4 „hittur", <= 2 „blank"). Badir DefCon-smidirnir baru
+         nakvaemlega thessa villu og voru lagfaerdir 4.9.2026 (CLAUDE.md
+         16c); thessi systkina-smiður var ekki sopadur med.
+         MAELT a committudum gognum: 2021/22 taldi **9.788 leiki thar sem
+         their voru 10.485** — 697 vantadi — og bjó til **147 drauga-
+         hitti** (Armstrong GW26: 2+2=4 talid sem einn 4+ hittur; Nørgaard
+         GW21 2+2; Cucurella GW22 3+2). Stig/leik skrifadist **3,210**
+         thar sem raunverulega talan per LEIK er **2,996** (+7,1%).
+         HELMINGURINN VAR LAGADUR 17.8.2026 — NEFNARINN EINN. `aron_games`
+         var endurnefnt „Gameweeks (n)" en teljarinn latinn standa, og
+         `stats.js` segir enn „matches"/„games played".
+         NU ER TALAN TIL: `mp` (fjoldi leikja ad baki rodinni) er skrifud
+         i slim-skrana thar sem raðirnar eru enn per leik — engin agiskun
+         ur `starts` eda minutum, sem MISSTI 22% raunverulegra tvofaldra
+         umferda.
+         SUMMA TVEGGJA LEIKJA SKER ADEINS UR I EINU TILVIKI: se hun <= 2
+         voru BADIR leikir <= 2 (blank) og hvorugur nadi 4. Annars gaeti
+         5 verid 5+0 eda 3+2 — og tha er rodin tekin UT UR BADUM,
+         teljara og nefnara. „Faar maelingar -> ENGIN tala" gildir lika um
+         staka rod. Talan er skrad (`dgw_undecided`) svo thognin sjaist.
+         ============================================================ */
+      const { games, hit4, blank, sum, undecided } = consistencyFromSlim(row.gw, inv);
+      if (games > 0) out[code] = { pos: row.p, games, hit4, blank, sum,
+                                   ...(undecided ? { dgw_undecided: undecided } : {}) };
     }
     if (!Object.keys(out).length) continue;
     /* p0 per stodu ur SOMU gognum — afturvirkni fyrir litil syni. */
@@ -4386,6 +4438,31 @@ async function fetchFast() {
      hverfur, sem er einmitt dagurinn sem hun er til fyrir. API-Sports-
      kollin sjalf eru gatud INNI i fallinu. Sama gildra og `fetch-fast.yml`
      an `env`-blokkar: fallid var kallad og sleppti ser thegjandi.       */
+  /* ============================================================
+     LIFANDI STIG TILHEYRA HRODU KEYRSLUNNI — ThAU BREYTAST A MEDAN
+     LEIKID ER (5.9.2026)
+     ============================================================
+     `fetchLiveRounds` var ADEINS kollud ur `fetchFPL`, sem gengur kl.
+     05 UTC. `live/gw{n}.json` var thvi endurnyjud EINU SINNI A SOLARHRING
+     — medan leikirnir sjalfir eru spiladir kl. 12-19 UTC.
+     MAELT 5.9.2026: atta af tiu GW3-leikjum voru bunir, en
+     `data/live/gw3.json` bar **22 byrjanir og 1.974 minutur — EINN
+     leik**. Skrain var skrifud kl. 19:08 thann 4.9., atta minutum eftir
+     fyrsta upphafsspark, og stod thannig i heilan dag.
+     Fyrir notandann thydir thad ad **sjo af atta spiludum leikjum lasu
+     0 stig**. Sama aett og allt annad i dag: talan var til, hun var bara
+     gomul, og ekkert sagdi frá.
+     Kvotinn er ekki fyrirstada: `fetchLiveRounds` sækir adeins umferdir
+     sem eru i gangi eda nybunar og sleppir theim sem eru innsiglaðar
+     (`sealed`), svo hradа keyrslan baetir vid einu kalli a umferd sem er
+     raunverulega ad breytast.                                          */
+  try {
+    /* Leikjaskrain sem hrada keyrslan skrifadi ordfaum linum ofar — hun
+       er thvi ferskari en nokkur onnur mynd sem vid gaetum sott.        */
+    const liveFx = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
+    await fetchLiveRounds({ events, fixtures: Array.isArray(liveFx) ? liveFx : (liveFx.fixtures || []) });
+  } catch (e) { record("fpl_live", false, 0, e.message); }
+
   try { await fetchLineups(); }
   catch (e) { record("api_lineups", false, 0, e.message); }
 

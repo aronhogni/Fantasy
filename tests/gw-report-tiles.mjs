@@ -487,7 +487,24 @@ H("5) LEIKIRNIR — E0-tolur og urslit borin vid skrana");
   const nShots = (id, team, pred = () => true) =>
     SH.filter(s => s.fixture === id && s.team === team && pred(s)).length;
 
+  /* ============================================================
+     E0 GETUR VANTAD FYRIR UMFERDINA — OG ThAD ER ASTAND, EKKI VILLA
+     ============================================================
+     football-data.co.uk gefur ut med tof og var i 503 i thrja daga
+     (8.9.2026). `E0-2627.json` bar tha 20 radir — GW1 og GW2 — medan
+     skyrslan syndi GW3, svo ENGINN leikur atti E0-tolur og fjorar radir
+     duttu af hverju spjaldi: 90 -> 50. Gamla fullyrdingin (`>= 80` fast)
+     fell thvi a ASTANDI heimildarinnar, ekki a appinu.
+     Fullyrdingin er nu **skilyrt af thekjunni sjalfri**, og hun er
+     STERKARI en su gamla thvi hun bitur i BADAR attir:
+       · E0 ber leikinn  -> radirnar fjorar VERDA ad vera thar og RETTAR
+       · E0 ber hann ekki -> thaer VERDA ad vantа (eda bera "—")
+     Sidara tilfellid var aldrei profad og er einmitt thad haettulega:
+     `?? 0` a vantandi E0-tolu myndi setja "0 skot" a spjaldid, sem les
+     eins og maeling. Golfid telur thvi 5 radir per leik ALLTAF og 4 til
+     vidbotar fyrir hvern leik sem E0 nær yfir.                        */
   let e0Rows = 0, e0Bad = [], boldBad = [], oneSided = 0, cardsFound = 0;
+  let e0Covered = 0, e0Blank = 0;
   for (const f of byKick) {
     const el = cardOf(f);
     if (!el) { e0Bad.push(`${f.h}-${f.a}: spjald fannst ekki`); continue; }
@@ -501,12 +518,24 @@ H("5) LEIKIRNIR — E0-tolur og urslit borin vid skrana");
       if (r.h !== want[0] || r.a !== want[1])
         e0Bad.push(`${f.h}-${f.a} «${lbl}» ${r.h}/${r.a} != ${want.join("/")}`);
     };
-    /* E0 — hrátt ur `fixtures[].stats` i skranni. */
+    /* E0 — hrátt ur `fixtures[].stats` i skranni, ThEGAR hun nær yfir
+       leikinn. `chkE0` krefst radarinnar tha og BANNAR toluna annars.  */
     const st = f.stats || {};
-    chk("Shots (E0)", st.shots_h, st.shots_a);
-    chk("On target (E0)", st.sot_h, st.sot_a);
-    chk("Corners", st.corners_h, st.corners_a);
-    chk("Fouls", st.fouls_h, st.fouls_a);
+    const hasE0 = st.shots_h != null || st.shots_a != null;
+    if (hasE0) e0Covered++;
+    const chkE0 = (lbl, h, a) => {
+      if (hasE0) return chk(lbl, h, a);
+      const r = R.get(lbl);
+      if (!r) { e0Blank++; return; }          // rodin sleppt — rett
+      e0Blank++;
+      if (r.h !== "—" || r.a !== "—")
+        e0Bad.push(`${f.h}-${f.a} «${lbl}» an E0-heimildar ber `
+          + `${r.h}/${r.a} i stad strika — tomt gildi er ekki null`);
+    };
+    chkE0("Shots (E0)", st.shots_h, st.shots_a);
+    chkE0("On target (E0)", st.sot_h, st.sot_a);
+    chkE0("Corners", st.corners_h, st.corners_a);
+    chkE0("Fouls", st.fouls_h, st.fouls_a);
     /* FPL-summad xG — eigin summa yfir leikmenn thessa leiks, heima/uti. */
     const xh = sumFx(f.id, true, "xg"), xa = sumFx(f.id, false, "xg");
     chk("xG (from FPL, summed)", xh?.toFixed(2), xa?.toFixed(2));
@@ -538,8 +567,15 @@ H("5) LEIKIRNIR — E0-tolur og urslit borin vid skrana");
   ok(`oll ${byKick.length} leikja-spjoldin fundust (${cardsFound})`, cardsFound === byKick.length);
   ok(`${e0Rows} tolu-radir lesnar ur sinum reit og RETTAR (${e0Bad.length} rangar)`,
     e0Bad.length === 0, e0Bad.slice(0, 4).join(" | "));
-  ok(`...og thaer eru raunverulega margar (${e0Rows} >= 80)`, e0Rows >= 80,
+  /* GOLFID ER LEITT: 5 radir per leik koma ur okkar EIGIN heimildum
+     (FPL-xG og ESPN-skotin fjogur) og eiga ALLTAF ad vera thar; E0
+     baetir fjorum vid fyrir hvern leik sem hun nær yfir.              */
+  const floor = 5 * byKick.length + 4 * e0Covered;
+  ok(`...og thaer eru raunverulega margar (${e0Rows} >= ${floor}: `
+     + `${byKick.length} leikir, E0 nær yfir ${e0Covered})`, e0Rows >= floor,
     "— thekja er fullyrding, ekki logga");
+  ok(`og leikur an E0 ber ENGA E0-tolu, ekki null (${e0Blank} radir sleppt/strik)`,
+     e0Blank === 4 * (byKick.length - e0Covered));
   ok(`feitletrunin fylgir HAERRI tolunni i hverri rod (${boldBad.length} brot)`,
     boldBad.length === 0, boldBad.slice(0, 4).join(" | "));
   /* MAELINGIN SEM GERDI KAFLA 5b NAUDSYNLEGAN: engin rod a raunverulegum

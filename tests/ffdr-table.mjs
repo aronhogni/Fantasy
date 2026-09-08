@@ -44,6 +44,21 @@ const ok = (name, cond, extra = "") => {
   else { fail++; console.log(`  ✗ ${name}${extra ? "   " + extra : ""}`); }
 };
 
+/* SKURDA-LENGINGIN — EIN UTFAERSLA FYRIR BADA STADINA (8.9.2026).
+   `tierOf` a ad skila `TIER_CUTS.length` sem thyngsta threpi, ALDREI
+   hardkodadri tolu (CLAUDE.md kafli 3). Medan skurdirnir eru nakvaemlega
+   fimm er `return 5` ognreinanlegt fra `return TIER_CUTS.length`, svo hver
+   fullyrding um thyngsta threpid er tautologia. Vid baetum thvi VID einum
+   skurdi um stundarsakir — tha og adeins tha verdur jafnan maelanleg.
+   `finally` skilar fylkinu ALLTAF, lika ef fullyrdingin kastar.          */
+const withExtraCut = fn => {
+  const before = TIER_CUTS.slice();
+  try {
+    TIER_CUTS.push(before[before.length - 1] + 0.5);
+    return fn(before);
+  } finally { TIER_CUTS.length = 0; TIER_CUTS.push(...before); }
+};
+
 const dom = new JSDOM("<!doctype html><div id=root></div>",
                       { url: "http://localhost/", pretendToBeVisual: true });
 globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -253,8 +268,44 @@ ok(`allar 20 lidsradir lesnar (${rows.length})`, rows.length === 20, `fann ${row
 {
   ok("TIER_CUTS eru vaxandi", TIER_CUTS.every((c, i) => i === 0 || c > TIER_CUTS[i - 1]),
      TIER_CUTS.join(","));
-  ok("tierOf skilar gildu threpi fyrir alla birta FFDR-tolu",
-     rows.every(r => [r.def, r.att].every(v => v == null || (tierOf(v) >= 0 && tierOf(v) <= TIER_CUTS.length))));
+  /* GAMLA FULLYRDINGIN VAR TAUTOLOGIA (lagfaerd 8.9.2026): hun spurdi hvort
+     `tierOf` skili tolu innan [0, TIER_CUTS.length] — sem er svidid sem
+     fallid GETUR skilad med byggingu, svo hun gat ekki fallid a neinu.
+     Nu er hvert threp SPAD FYRIRFRAM ut fra skurdunum og borid vid utkomuna;
+     thad fellir bædi `<` -> `<=` og fasta-skil.                           */
+  {
+    const bad = [];
+    for (let i = 0; i < TIER_CUTS.length; i++) {
+      /* rett UNDIR skurdinum -> threp i; skurdurinn SJALFUR -> threp i+1
+         (skilyrdid er `d < cut`, svo jafngildi tilheyrir thyngra threpinu). */
+      if (tierOf(TIER_CUTS[i] - 1e-9) !== i) bad.push(`${TIER_CUTS[i]}-e -> ${tierOf(TIER_CUTS[i] - 1e-9)}, aetti ${i}`);
+      if (tierOf(TIER_CUTS[i]) !== i + 1) bad.push(`${TIER_CUTS[i]} -> ${tierOf(TIER_CUTS[i])}, aetti ${i + 1}`);
+    }
+    ok("tierOf skilar SPADU threpi a hverjum skurdi (jafngildi tilheyrir thyngra threpinu)",
+       bad.length === 0, bad.slice(0, 3).join(" · "));
+  }
+
+  /* ThYNGSTA THREPID ER `TIER_CUTS.length`, ALDREI HARDKODUD TALA.
+     CLAUDE.md kafli 3 segir thetta berum ordum — en engin fullyrding gat
+     SED thad medan skurdirnir eru nakvaemlega fimm: `return 5` og
+     `return TIER_CUTS.length` eru sama talan. Vid LENGJUM thvi skurdina
+     tímabundid; tha og adeins tha verdur jafnan maelanleg.
+     `TIER_CUTS` er venjulegt fylki (ekki fryst) og `tierOf` les `.length`
+     vid hvert kall, svo thetta profar fallid sem KEYRIR — ekki afrit.     */
+  {
+    const n0 = TIER_CUTS.length;
+    const r = withExtraCut(before => ({
+      heaviest: tierOf(1e9),                              // yfir OLLUM skurdum
+      mid: tierOf(before[before.length - 1] + 0.1),       // milli gamla og nyja skurdarins
+      len: before.length,
+    }));
+    ok(`thyngsta threpid fylgir FJOLDA skurda (6 skurdir -> threp ${r.heaviest})`,
+       r.heaviest === r.len + 1, `fekk ${r.heaviest}, aetti ${r.len + 1}`);
+    ok(`og nyi skurdurinn er raunverulega lesinn (gildi milli theirra -> threp ${r.mid})`,
+       r.mid === r.len, `fekk ${r.mid}, aetti ${r.len}`);
+    ok("og TIER_CUTS er oskaddad eftir profid",
+       TIER_CUTS.length === n0 && tierOf(1e9) === n0, TIER_CUTS.join(","));
+  }
 }
 
 /* ============================================================
@@ -407,8 +458,13 @@ console.log("\n=== OMETINN LEIKUR (tilbuin gogn) ===");
      /x\.d == null \? "—"/.test(src));
   /* HERMUM BADAR UTKOMURNAR BEINT A `tierOf` svo talan sem var rong
      se skjolud, ekki adeins vordurinn. */
+  /* `=== TIER_CUTS.length` EITT VAR TAUTOLOGIA (lagfaerd 8.9.2026) — badar
+     hlidar lesa somu tolu, svo hardkodad `return 5` stodst hana. Fullyrdingin
+     spyr nu ad ThVI SEM HUN HEITIR EFTIR: NaN lendir a thyngsta threpinu, og
+     thad threp FAERIST thegar skurdunum fjolgar.                          */
   ok(`SANNREYNT: Math.max(undefined) -> NaN -> tierOf = ${tierOf(Math.max(undefined))} (thyngsta)`,
-     tierOf(Math.max(undefined)) === TIER_CUTS.length);
+     tierOf(Math.max(undefined)) === TIER_CUTS.length
+     && withExtraCut(before => tierOf(Math.max(undefined)) === before.length + 1));
   ok(`SANNREYNT: Math.max(null) -> 0 -> tierOf = ${tierOf(Math.max(null))} (LETTASTA — verri villan)`,
      tierOf(Math.max(null)) === 0);
 }

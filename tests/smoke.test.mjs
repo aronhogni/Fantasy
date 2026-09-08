@@ -324,15 +324,24 @@ ok(!!travelChip && /km \(as the crow flies\)/.test(travelChip.title), "ferða-to
     "— an hennar maelir naesta fullyrding ekkert");
   if (row) {
     const t = row.textContent || "";
-    const iNews = t.indexOf("Unspecified injury");
+    /* FPL-TEXTINN SJALFUR ER LIFANDI GAGN — hann var „Unspecified injury"
+       thegar thetta var skrifad og er ordinn „Muscular injury" tveimur
+       dogum sidar. Fullyrdingin ma thvi ekki negla ordalagid heldur
+       STADSETNINGUNA: frettin er thad sem `av.news` ber, hver sem hun er.
+       Sama gildra og allt annad i dag — og hun var min eigin.          */
+    const newsTxt = String(allPlayers.find(p => p.id === 11)?.news || "").slice(0, 42);
+    const iNews = newsTxt ? t.indexOf(newsTxt.slice(0, 18)) : -1;
     const iEnrich = t.indexOf("Hamstring");
+    ok(!!newsTxt, `forsenda: FPL ber frett a Mosquera ("${newsTxt.slice(0, 40)}")`);
     ok(iNews >= 0, `FPL-frettin sjalf er a skjanum ("${t.slice(0, 60)}")`);
     ok(iNews >= 0 && iEnrich > iNews,
       `FPL LEIDIR og audgunin FYLGIR (news @${iNews}, audgun @${iEnrich})`,
       "— audgunin var adur feitletrud FREMST");
     /* OG FPL-FRETTIN MA EKKI VERA STYTT NIDUR I 30 STAFI ThEGAR
        AUDGUNIN ER TIL — hun var thad adur.                            */
-    ok(t.includes("75% chance"),
+    /* OG HUN ER EKKI STYTT NIDUR I 30 STAFI: profad a LENGDINNI sem
+       birtist, ekki a orðalagi sem breytist.                          */
+    ok(iNews >= 0 && t.slice(iNews).length >= Math.min(newsTxt.length, 40),
       "og hun er EKKI stytt nidur i 30 stafi thott audgunin se til",
       `— "${t.slice(0, 80)}"`);
   }

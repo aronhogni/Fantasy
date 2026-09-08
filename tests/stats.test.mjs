@@ -1555,9 +1555,116 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
   /* SKYRING A HVERJUM DALKI ER SKYLDA. Stytt haus-heiti ("CBI", "GA−xGI",
      "/90") er RADGATA an tooltip-s, svo styttingin og skyringin eru ein og
      sama akvordunin: annad ma ekki koma an hins.                          */
-  const noNote = STAT_DEFS.filter(d => !d.note || String(d.note).length < 12);
+  /* OG HUN VAR MAELD A RANGRI TOLU TIL 8.9.2026 — TOM FULLYRDING (5b).
+     `d.note` er SAMSETT vid innflutning: `SCOPE_NOTES` leggja 200-350 stafa
+     fyrirvara ofan a 53 af 126 dalkum. Fullyrdingin las thvi lengd sem
+     hofundur dalksins radi engu um: dalkur med notuna "x" maeldist 269
+     stafir og stodst. Stokkbreyting a EIGIN notu dalks felldi EKKERT.
+     Nu er fullyrt um `note_raw` — thad sem hofundurinn skrifadi — og
+     samsetta notan sem notandinn ser er OBREYTT.                          */
+  const noNote = STAT_DEFS.filter(d => !d.note_raw || String(d.note_raw).length < 12);
   eq(noNote.length, 0,
-    `hver dálkur hefur skýringu í tooltip${noNote.length ? " — " + noNote[0].key : ""}`);
+    `hver dálkur hefur EIGIN skýringu (note_raw ≥ 12)${noNote.length ? " — " + noNote[0].key : ""}`);
+
+  /* SAMSETTA NOTAN MA EKKI VEIKJAST: hun er thad sem birtist i tooltip-inu,
+     svo `note_raw` er VIDBOT, ekki skipti. Fullyrdingin binder thaer saman
+     — samsetta notan verdur ad BYRJA a hofundar-notunni.                 */
+  {
+    const bad = STAT_DEFS.filter(d => !String(d.note).startsWith(String(d.note_raw)));
+    eq(bad.length, 0,
+      `samsetta notan ber hofundar-notuna obreytta${bad.length ? " — " + bad[0].key : ""}`);
+  }
+
+  /* SKYRINGIN VERDUR AD VERA UM ThENNAN DALK, EKKI SAMEIGINLEGUR TEXTI.
+     An thessa vaeri haegt ad uppfylla regluna ad ofan med thvi ad afrita
+     somu setninguna a alla dalka — sem er nakvaemlega thad sem `SCOPE_NOTES`
+     gerdu OSJALFRATT og faldi villuna i fjogur ar af commit-um.           */
+  {
+    const seen = new Map(); const dup = [];
+    for (const d of STAT_DEFS) {
+      const k = String(d.note_raw).trim().toLowerCase();
+      if (seen.has(k)) dup.push(`${d.key} = ${seen.get(k)}`); else seen.set(k, d.key);
+    }
+    eq(dup.length, 0, `hver skýring er dálks-sértæk${dup.length ? " — " + dup[0] : ""}`);
+    /* OG ENGIN HOFUNDAR-NOTA MA VERA BER FYRIRVARI (sami texti og reglan). */
+    const boiler = STAT_DEFS.filter(d =>
+      SCOPE_NOTES.some(s => String(d.note_raw).trim() === s.text));
+    eq(boiler.length, 0,
+      `engin skýring er ber SCOPE_NOTES-texti${boiler.length ? " — " + boiler[0].key : ""}`);
+  }
+
+  /* NAGRANNI SEM SANNAR AD RODIN SE A LIFI (5b): vaeru fyrirvararnir stuttir
+     gaeti gamla fullyrdingin hafa verid i lagi allan timann. Hun var thad
+     ekki — maelt her a lifandi skra hve margir dalkar bera fyrirvara sem
+     einn og ser dugar til ad standast 12-stafa golfid.                    */
+  {
+    const hidden = STAT_DEFS.filter(d =>
+      d.note !== d.note_raw && String(d.note).length - String(d.note_raw).length >= 12);
+    ok(hidden.length >= 20,
+      `forsenda: ${hidden.length} dálkar bera fyrirvara sem EINN dygði gamla verðinum`);
+  }
+
+  /* ---- 2c. `hi` — ATTIN A OLLUM DALKUNUM (8.9.2026) ----------------------
+     `hi` er FORSENDA, ekki skraut (CLAUDE.md kafli 8): hun snyr hitakortinu
+     (P10-P90 kvordunin er spegluð thegar `hi === false`), hun raedur SJALFGEFNU
+     RODUNAR-ATTINNI og hun radar stigatoflunni. Villandi mynd er verri en engin.
+     OG HUN VAR OVORDUD A ThESSARI TOFLU: `compare-visual.mjs` nefnir
+     `goals_conceded`, en leidir `lower` ur `ROWS` i `src/Compare.jsx` — ANNARRI
+     toflu. Ad snua `hi` a `goals_conceded` HER felldi ekkert i compare-visual,
+     stats.test, playerlist-heat ne playerlist-sort.
+
+     UPPTALIN SKIPTING, sama mynstur og `team-stats.mjs` kafli 2: listinn er
+     AKVORDUN um merkingu og a ad brotna SYNILEGA ef einhver snyr honum —
+     og fylgifiskurinn er ad NYR DALKUR kemst ekki inn an thess ad einhver
+     taki afstodu til attarinnar.                                          */
+  {
+    /* LAEGRA ER BETRA — hver og einn af astaedu:
+       verd og erfidleiki (minna er odyrara/lettara) · rodun i fostum
+       leikatridum (1 = fyrsti taki) · allt sem lidid/leikmadurinn faer A SIG
+       eda gerir rangt · minutur PER framlag · HANS EIGIN skot sem voru
+       blokkerud · blank-hlutfallid.                                        */
+    const LOWER_BETTER = [
+      "now_cost", "ffdr4", "fdr6",
+      "pen_order", "fk_order", "ck_order",
+      "mins_per_xgi", "bsd_blocks",
+      "penalties_missed", "own_goals", "yellow_cards", "red_cards", "cards_per_90",
+      "goals_conceded", "gc_per_90", "expected_goals_conceded", "xgc_per_90",
+      "gc_minus_xgc", "aron_blank",
+    ];
+    const lowerSet = new Set(LOWER_BETTER);
+
+    /* (a) HVER LYKILL I LISTANUM ER TIL. An thessa deyr listinn thogult vid
+           endurnefningu — sama villuaett og daudi `preseason_`-fyrirvarinn. */
+    const missing = LOWER_BETTER.filter(k => !STAT_BY_KEY[k]);
+    eq(missing.length, 0, `hver lykill i LOWER_BETTER er til${missing.length ? " — " + missing[0] : ""}`);
+    eq(LOWER_BETTER.length, lowerSet.size, "engin tvitekning i LOWER_BETTER");
+
+    /* (b) HVER TALDUR DALKUR BER `hi === false`. */
+    const wrongLow = LOWER_BETTER.filter(k => STAT_BY_KEY[k] && STAT_BY_KEY[k].hi !== false);
+    eq(wrongLow.length, 0, `taldir dálkar bera hi:false${wrongLow.length ? " — " + wrongLow.join(",") : ""}`);
+
+    /* (c) OG ALLIR HINIR BERA `hi === true` — ThETTA ER HELMINGURINN SEM GERIR
+           SKIPTINGUNA TAEMANDI. Nyr dalkur an `hi`, eda dalkur sem er snuid i
+           `false` an thess ad rata i listann, fellur her.                   */
+    const wrongHigh = STAT_DEFS.filter(d => !lowerSet.has(d.key) && d.hi !== true).map(d => `${d.key}=${JSON.stringify(d.hi)}`);
+    eq(wrongHigh.length, 0, `allir adrir bera hi:true${wrongHigh.length ? " — " + wrongHigh.slice(0, 3).join(" · ") : ""}`);
+
+    /* (d) OG TOLURNAR STEMMA — bein tautologiu-vorn: fullyrdingarnar ad ofan
+           mega ekki standast med thvi ad listinn se tomur eda taflan sma.   */
+    const nLow = STAT_DEFS.filter(d => d.hi === false).length;
+    eq(nLow, LOWER_BETTER.length, `taldir laegri-er-betri dalkar eru ALLIR theirra (${nLow})`);
+    eq(LOWER_BETTER.length + STAT_DEFS.filter(d => d.hi === true).length, STAT_DEFS.length,
+      `skiptingin naer yfir hvern dalk (${STAT_DEFS.length})`);
+
+    /* (e) SERTILFELLID: TVEIR DALKAR MED SOMU REIKNIADGERD OG ANDSTAEDA ATT.
+           `goals_minus_xg` (yfir null = betri en likurnar) og `gc_minus_xgc`
+           (undir null = betri en likurnar) eru bædi "raun minus vaent" — og
+           thad er nakvaemlega parid sem einhver "samraemir" i ogati.        */
+    ok(STAT_BY_KEY.goals_minus_xg.hi === true && STAT_BY_KEY.gc_minus_xgc.hi === false,
+      "raun-minus-vaent: SOKN haerra betra, VORN laegra betra");
+    ok(STAT_BY_KEY.now_cost.hi === false && STAT_BY_KEY.pts_per_million.hi === true,
+      "verd er laegra-betra en stig-per-milljon haerra-betra");
+  }
 
   /* BANDS (spannandi hausrod, FFS-lagid) verda ad vera SAMFELLD innan
      flokks: bands-rodin leggur saman breiddir samliggjandi dalka, svo

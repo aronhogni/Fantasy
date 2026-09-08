@@ -995,8 +995,35 @@ console.log("\n--- J. st0% ---");
   const badgeDump = () => rotBadges()
     .map(s => `${(s.textContent || "").trim()} <${s.getAttribute("title") || ""}>`)
     .slice(0, 4).join(" · ");
-  ok(!/\bst0%/.test(v.text()), "og 'st0%' er hvergi a skjanum",
-     `${rotBadges().length} roterings-merki a vellinum: ${badgeDump()}`);
+  /* ============================================================
+     FULLYRDINGIN VAR UM ASTAND, EKKI UM REGLUNA (leidrett 5.9.2026)
+     ============================================================
+     Hér stod `!/\bst0%/` — „st0% er HVERGI a skjanum". Hun var sonn
+     medan felogin hofdu spilad faa leiki, og VARD OSONN um leid og GW3
+     var spilud: madur med **0 byrjanir OG raunverulegar minutur** i
+     thremur leikjum faer merkid RETTILEGA (`Started 0 of 3 matches`).
+     Reglan sem kaflinn ver er throngri: **omaeld nulltala** — `starts: 0`
+     OG `minutes: 0` — a ekki ad fa tolu. Fullyrdingin er nu bundin vid
+     ThA menn, svo hun getur ekki fallid a dagatalinu.
+     Kaldhaednin er ad athugasemdin thrjatiu linum ofar varar vid
+     nakvaemlega thessu: „hardkodud tala her er fullyrding sem er DAEMD
+     til ad falla". Nofnin voru leidd — skja-fullyrdingin var thad ekki.
+     ============================================================ */
+  const zeroCards = zeroed.map(p => v.q('[draggable="true"]')
+      .find(c => (c.textContent || "").includes(p.web_name)))
+    .filter(Boolean);
+  ok(zeroed.length === 0 || zeroCards.length > 0,
+     `forsenda: spjold theirra ${zeroed.length} sem bera omaelda nullu eru a vellinum `
+     + `(${zeroCards.length})`);
+  ok(zeroCards.every(c => !/\bst\d+%/.test(c.textContent || "")),
+     "OMAELD NULLTALA faer ekkert roterings-merki",
+     `${rotBadges().length} merki a vellinum: ${badgeDump()}`);
+  /* OG MERKID ER EKKI HORFID YFIR HAUS — sa sem A tolu ber hana afram.
+     Bædar hlidar tharf, annars vaeri „ekkert merki" graent i hruni.   */
+  const earned = rotBadges().filter(sp => / of \d+ matches/.test(sp.getAttribute("title") || ""));
+  ok(rotBadges().length === 0 || earned.length > 0,
+     `merki sem ER a skjanum ber UNNINN nefnara (${earned.length} af ${rotBadges().length})`,
+     badgeDump());
   /* ============================================================
      OG NEFNARINN VERDUR AD VERA UR SAMA TIMABILI OG TELJARINN (22.8.2026)
 
@@ -1042,11 +1069,27 @@ console.log("\n--- J. st0% ---");
          lina er GRAEN i dag og fullyrdingin fyrir ofan er RAUD; saman
          segja thaer ad villan se i NEFNARANUM sem spjaldid faer, ekki i
          `rotationRisk`. Ekki afrit af utreikningnum — sama fall.       */
-      const flaggedFixed = START_IDS.map(id => byId[id]).filter(p =>
-        rotationRisk(p, byClub[p.team] ?? 0)?.level === "high");
-      ok(flaggedFixed.length === 0,
-         "...og med nefnara ur SAMA timabili ber ekkert spjald merki",
-         flaggedFixed.map(p => p.web_name).join(", "));
+      /* ============================================================
+         OG ThESSI VAR SOMULEIDIS UM ASTAND (leidrett 5.9.2026)
+         ============================================================
+         Hér stod `flaggedFixed.length === 0` og athugasemdin sagdi
+         sjalf hvers vegna: „`enough` krefst thriggja leikja og their eru
+         EKKI KOMNIR". Their eru komnir nuna, svo madur med 0 byrjanir i
+         thremur leikjum faer rettilega „high" — og fullyrdingin fell a
+         dagatalinu, ekki a kodanum.
+         Reglan sem skiptir mali er um NEFNARANN: hann verdur ad koma ur
+         ThESSU timabili. Hun er nu profud beint — hvert merki sem ER
+         gefid verdur ad hafa nefnara sem jafngildir leikjum felagsins
+         i ar, aldrei 38.                                              */
+      const flaggedFixed = START_IDS.map(id => byId[id])
+        .map(p => ({ p, r: rotationRisk(p, byClub[p.team] ?? 0) }))
+        .filter(x => x.r?.level === "high");
+      ok(flaggedFixed.every(x => x.r.played === (byClub[x.p.team] ?? 0)),
+         `hvert merki ber nefnara ur ThESSU timabili (${flaggedFixed.length} merkt)`,
+         flaggedFixed.map(x => `${x.p.web_name} ${x.r.starts}/${x.r.played}`).join(", "));
+      ok(flaggedFixed.every(x => x.r.played <= 38 && x.r.played === (byClub[x.p.team] ?? 0)),
+         "og hann er ALDREI 38 (fyrra timabil) medan felagid hefur spilad faerri",
+         flaggedFixed.map(x => `${x.p.web_name} ${x.r.played}`).join(", "));
     }
   }
   /* OG MERKID ER EKKI HORFID YFIR HAUS: einhver a raungognum a ad hafa

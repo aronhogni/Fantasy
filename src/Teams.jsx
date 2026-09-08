@@ -411,6 +411,25 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
             .every(d => rows.every(r => d.get(r) == null)),
     [rows]);
 
+  /* ============================================================
+     TEXTINN TALDI UPP OG VAR ORDINN RANGUR (5.9.2026)
+     ============================================================
+     Notandinn: „thad eru fullt af stats undir teams sem virka ekki."
+     MAELT af skjanum: 12-15 dalkar bera „—" hja ollum 20 lidum a
+     yfirstandandi timabili. **Flestir theirra eru RETT tomir** — skot a
+     mark, teigur, horn, brot og spjold eru hvergi til fyrir thetta
+     timabil, og „vantar er ekki null" segir ad their eigi ad vera tomir.
+     ThAD SEM VAR RANGT VAR TEXTINN: hann taldi upp „shots, xG, xGC and
+     set-piece columns", sem var satt thegar hann var skrifadur og VARD
+     OSONN um leid og xG/xGC komu ur `bsd_live` (24.8.2026) — notandinn
+     las ad xG vaeri tomt medan dalkurinn bar tolu.
+     Hann segir nu REGLUNA i stad upptalningar: strik thydir „engin
+     heimild naer yfir thetta timabil enn", aldrei null. Regla ureldist
+     ekki; upptalning gerir thad.
+     (Leidd upptalning var reynd og tekin ut aftur: hun bar ekki saman
+     vid thad sem SEST, thvi taflan syn einn flokk i einu og `d.get`
+     sest ekki i sama astandi og holfid. Rangur listi er verri en engin
+     upptalning.)                                                       */
   /* HVADAN BILS-TALAN KEMUR — SOGT BERUM ORDUM. `src` a dalkinum er
      ARSTIDAR-heimildin (E0 fyrir mork og hrein blod) og hun er ekki su sem
      bilid les, svo tooltip sem naefndi adeins hana vaeri rangt um toluna sem
@@ -626,9 +645,9 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
                sem `season_locked`-vélin var smidud fyrir.               */
             <p style={S.note}>
               {`This season so far: ${liveForm.matches_counted} matches played. `
-               + `Goals, goals conceded and clean sheets are real; shots, xG, xGC `
-               + `and set-piece columns are empty because those come from sources `
-               + `that only cover ${bsdTeams?.season || "last season"}.`}
+               + "Goals, goals conceded and clean sheets come from the results "
+               + "themselves. Any column showing a dash has no source that covers "
+               + "this season yet — a dash never means zero."}
             </p>
           )}
           <div style={S.gwBar}>

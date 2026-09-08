@@ -1207,7 +1207,15 @@ export const SCOPE_NOTES = [
     text: "PER-90 RATE — READ IT NEXT TO MINUTES: dividing by minutes lets a cameo outrank every regular, and this column has no minutes floor. Measured on 2025/26, several per-90 columns are led outright by players with under 40 minutes on the pitch." },
 ];
 
+/* `note_raw` ER HOFUNDAR-NOTAN EIN — SETT ADUR EN FYRIRVARARNIR LEGGJAST A
+   (8.9.2026). Vordurinn "hver dalkur hefur skyringu" las SAMSETTU notuna og
+   var thvi TOM FULLYRDING (CLAUDE.md 5b): fyrirvararnir her ad nedan eru
+   200-350 stafir, svo dalkur med notunni "x" mældist 269 stafa langur og
+   slapp. Maelt: 53 af 126 dalkum hafa NOG i fyrirvaranum einum.
+   Notandinn ser AFRAM samsettu notuna — `note` er obreytt; `note_raw` er
+   adeins til svo haegt se ad fullyrda um thad sem HOFUNDURINN skrifadi.   */
 for (const d of STAT_DEFS) {
+  d.note_raw = d.note;
   for (const s of SCOPE_NOTES) if (s.applies(d)) d.note += " " + s.text;
 }
 

@@ -162,11 +162,31 @@ console.log("\n--- A. St%-HLIDID ---");
 
   const squad = START_IDS.map(id => byId[id]);
   const low = squad.filter(p => rotOf(p, played[p.team] ?? seasonGames)?.level === "low");
-  ok(low.length > 0,
-     `forsenda: committud \`data/\` gefur mann med of litid urtak (${low.length} af 15)`,
-     "ekkert i thessum kafla er maelt an hans");
+  /* ============================================================
+     KAFLINN SEFUR ThEGAR ASTANDID ER EKKI TIL (5.9.2026)
+     ============================================================
+     „Of litid urtak" er `level === "low"`, sem krefst thess ad felagid
+     hafi spilad FAERRI EN ThRJA leiki. Thad astand hverfur af sjalfu ser
+     eftir thridju umferd og kemur aftur naesta sumar — svo hord forsenda
+     her er fullyrding sem er DAEMD til ad falla an thess ad nokkur kodi
+     breytist. Nakvaemlega thad sem geridst i dag (0 af 15).
+     REGLAN SJALF ER SAMT PROFUD ALLTAF: `rotationRisk` er hreint fall,
+     svo „low" er profad a TILBUNUM nefnara. Skja-hlutinn sefur.
+     Sama form og kafli J i `initial-squad.mjs`.
+     ============================================================ */
+  const anyPlayer = squad.find(Boolean);
+  ok(rotOf({ ...anyPlayer, starts: 1, minutes: 90 }, 2)?.level === "low",
+     "REGLAN: tveir leiknir leikir gefa 'low' (of litid urtak)",
+     JSON.stringify(rotOf({ ...anyPlayer, starts: 1, minutes: 90 }, 2)));
+  ok(rotOf({ ...anyPlayer, starts: 1, minutes: 90 }, 8)?.level !== "low",
+     "og atta leikir gera thad EKKI — throskuldurinn er raunverulegur");
+  if (!low.length) {
+    ok(true, `kaflinn SEFUR: ekkert felag i proflidinu hefur spilad faerri en `
+      + `thrja leiki i dag (0 af 15) — vaknar naesta sumar`);
+  }
 
   const v = await mount({ captain: 411 });
+  if (low.length) {
   const opened = await v.openCard(low[0].web_name);
   ok(opened, `spjald ${low[0].web_name} opnadist (of litid urtak)`);
   const t1 = v.card();
@@ -178,6 +198,7 @@ console.log("\n--- A. St%-HLIDID ---");
   const rl = rotOf(low[0], played[low[0].team] ?? seasonGames);
   ok(!/Started/.test(t1),
      `„Started"-reiturinn er EKKI their (${rl.starts}/${rl.played} = ${rl.pct}%)`);
+  }
 
   /* HIN ATTIN — OG HUN ER BYGGD, EKKI FUNDIN. I dag hefur EKKERT felag
      spilad thrja leiki, svo „reiturinn birtist" er ekki profanlegt a

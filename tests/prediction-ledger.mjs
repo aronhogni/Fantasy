@@ -689,7 +689,25 @@ console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)
   const oddsFile = JSON.parse(readFileSync(new URL("../data/odds.json", import.meta.url), "utf8"));
   const nTeams = Object.keys(oddsFile.teams || {}).length;
   ok("FORSENDA: odds.json ber tofluna", nTeams >= 10, `${nTeams} felog`);
-  const gwOdds = Array.isArray(oddsFile.gws) && oddsFile.gws.length ? oddsFile.gws[0] : null;
+  /* ============================================================
+     UMFERDIN SEM ER VALIN VERDUR AD VERA SU SEM ER OPIN (5.9.2026)
+     ============================================================
+     Hér stod `gws[0]` — FYRSTA umferdin sem skrain spannar. Bokmakarinn
+     verdleggur viku fram i timann, svo skrain spannar reglulega TVAER
+     umferdir og su fyrri er ThEGAR SPILUD. Bokhaldid var thvi byggt fyrir
+     spiladа umferd, thar sem `csFor` hafnar rettilega ollum linum nema
+     theim fau sem tilheyra henni — og fullyrdingin „>= 10 radir hreyfast"
+     fell a REYNDU svari.
+     MAELT i dag: `gws: [3, 4]`, GW3 spilud (4 linur), GW4 opin (16 linur).
+     Med `gws[0]` hreyfdust 4; med opnu umferdinni eiga 16 ad hreyfast.
+     Sama villa og appid sjalft bar i agust: unnid var med `is_current`
+     thegar spurningin var „hvad er verid ad skipuleggja".            */
+  const FX0 = arr(tryJ("fixtures.json"), "fixtures");
+  const openGw = (Array.isArray(oddsFile.gws) ? [...oddsFile.gws] : [])
+    .sort((a, b) => b - a)
+    .find(g => FX0.some(f => f.event === g && !f.finished && !f.finished_provisional));
+  const gwOdds = openGw ?? (Array.isArray(oddsFile.gws) && oddsFile.gws.length
+    ? oddsFile.gws[0] : null);
   ok("FORSENDA: taflan naer yfir tiltekna umferd", gwOdds != null, `gws ${JSON.stringify(oddsFile.gws)}`);
 
   const mk = (odds, gw) => buildSnapshot({
@@ -711,8 +729,48 @@ console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)
     return q && (Math.abs((r.att ?? 0) - (q.att ?? 0)) > 0.005
               || Math.abs((r.def ?? 0) - (q.def ?? 0)) > 0.005);
   }).length;
-  ok("markadslidurinn HREYFIR FFDR i bokhaldinu", moved >= 10,
-     `${moved} af ${withMkt.ffdr.length} rodum hreyfast`);
+  /* ============================================================
+     ThAKID ER NYTILEGAR LINUR, EKKI FAST 10 (leidrett 5.9.2026)
+     ============================================================
+     Hér stod `moved >= 10`. Su tala var rett medan `odds.json` la a
+     somu umferd og bokhaldid — en bokmakarinn verðleggur viku fram i
+     timann og hlidid hleypir adeins EINNI sokn i hvorn glugga, svo
+     milli glugga ber skrain ad hluta linur fyrir umferd sem er ThEGAR
+     SPILUD. `csFor` sannreynir motherja OG dagsetningu, svo thaer linur
+     eru RETTILEGA hunsadar — og tha hreyfast faerri en 10 radir an thess
+     ad nokkud se ad.
+     MAELT i dag: `odds.json` (sott 6.9.) spannar GW3 og GW4, GW3 er
+     spilud, og 4 felog eiga nytilega GW4-linu. Fjorar radir hreyfast —
+     rett tala, felld fullyrding.
+     Fullyrdingin er nu HLUTFALLSLEG: HVER nytileg lina verdur ad hreyfa
+     sina rod. Hun getur ekki fallid a dagatalinu og hun bitur enn —
+     detti markadslidurinn ur sambandi hreyfist ENGIN.                 */
+  /* „NYTILEG" ER SAMA THREFALDA PROFID OG `csFor` GERIR: felag, MOTHERJI
+     og dagsetning. Fyrsta utgafa mín leit adeins a dagsetninguna og taldi
+     16 felog nytileg thar sem thau eru 4 — dagsetning ein passar vid
+     hvada leik sem er thann dag.                                       */
+  const TEAMS = arr(tryJ("teams.json"), "teams");
+  const idOf = new Map(TEAMS.map(t => [t.short, t.id]));
+  const FX = FX0;
+  const usable = new Set();
+  for (const [short, o] of Object.entries(oddsFile.teams || {})) {
+    if (!o || o.diff == null || !o.opp || !o.kickoff) continue;
+    const me = idOf.get(short), opp = idOf.get(o.opp);
+    if (me == null || opp == null) continue;
+    const day = String(o.kickoff).slice(0, 10);
+    /* Og hun verdur ad tilheyra ThEIRRI umferd sem bokhaldid er byggt
+       fyrir — lina fyrir adra umferd er rettilega hunsud.             */
+    const fx = FX.find(f => !f.finished && !f.finished_provisional
+      && f.event === gwOdds
+      && String(f.kickoff_time || "").slice(0, 10) === day
+      && ((f.team_h === me && f.team_a === opp) || (f.team_a === me && f.team_h === opp)));
+    if (fx) usable.add(short);
+  }
+  ok(`FORSENDA: einhver lina er nytileg fyrir opna umferd (${usable.size} felog)`,
+     usable.size > 0, JSON.stringify([...usable]));
+  ok("markadslidurinn HREYFIR FFDR i bokhaldinu — HVER nytileg lina",
+     moved >= usable.size,
+     `${moved} af ${withMkt.ffdr.length} rodum hreyfast; nytilegar linur ${usable.size}`);
 
   /* OG SNIDID MA EKKI SKIPTA MALI: `main()` sendir skrana, profin sendu
      tofluna. Baed eiga ad gefa SOMU tolu — annars er villan bara flutt.  */

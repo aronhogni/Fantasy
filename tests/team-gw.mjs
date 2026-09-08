@@ -21,7 +21,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
-import { TEAM_STAT_BY_KEY, TEAM_GROUPS } from "../src/teamstats.js";
+import { TEAM_STAT_BY_KEY, TEAM_GROUPS, buildTeamRows, buildLiveTeamForm, applyTeamRange } from "../src/teamstats.js";
 /* HEITIN A FLOKKA-HNOPPUNUM ERU LESIN UR SKRANNI, EKKI SLEGIN INN. Their
    stodu hardkodadir ("What the keeper faces") a fjorum stodum her og
    brotnudu allir i einu thegar heitid var stytt i "GK" 25.8.2026 — og thad
@@ -840,6 +840,39 @@ console.log("\n4d) `bsd_live.team_matches` -> xG/xGC I LIFANDI SYN");
     `${LIVE_MATCHES.length} radir`);
   /* Lid sem spiladi HEIMA i thessum gognum — tha er xGC thess = xG utilidsins. */
   const homeShort = LIVE_MATCHES[0].home.team;
+  /* ============================================================
+     OG SU FULLYRDING SANNAR EKKI TENGINGUNA — HUN SENDIR PROPID SJALF
+     (5.9.2026)
+     ============================================================
+     `draw(bsdLive)` teiknar `<Teams>` BEINT og gefur propid sjalft, svo
+     `App.jsx` er ALDREI a leidinni. Kaflinn sannar thvi ad `Teams.jsx`
+     LESI propid — en ekkert sannar ad appid SENDI thad, sem er einmitt
+     villan sem CLAUDE.md kafli 3 skjalar: *„App.jsx sendi `bsdLive`
+     ALDREI inn i `<Teams>`"*. Stokkbreyting sem setur `bsdLive={null}` i
+     App.jsx felldi **0 fullyrdingar** her.
+     Tengingin er thvi profud thar sem hun byr: i kallinu sjalfu.       */
+  {
+    const appSrc = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+    const call = appSrc.slice(appSrc.indexOf("<Teams "), appSrc.indexOf("<Teams ") + 400);
+    /* `ok(nafn, skilyrdi)` — SKILABODIN FYRST i thessu safni. Fyrsta
+       utgafa minna tveggja fullyrdinga sneri thvi vid, svo strengurinn
+       lenti i `cond` og var alltaf sannur: baðar voru HOLAR og prentudu
+       „true". Stokkbreytingin (`bsdLive={null}`) felldi 0 — nakvaemlega
+       gildran sem thessi kafli er skrifadur til ad loka, endurtekin i
+       honum sjalfum. CLAUDE.md skjalar somu villu i `ffdr-table.mjs`.  */
+    ok("App.jsx SENDIR `bsdLive` inn i <Teams> — annars stendur dalkurinn tomur "
+      + "thott pipeline-an skrifi gognin",
+      /bsdLive=\{bsdLive\}/.test(call), call.slice(0, 160));
+    /* OG BREYTAN SJALF ER LESIN UR SKRANNI, ekki hardkoðuð i null.     */
+    /* SAMA SVIDID, EKKI BADIR STRENGIRNIR EINHVERS STADAR: skran er
+       lesin i gegnum OPTIONAL-listann (`["bsd_live.json", setBsdLive]`),
+       svo pörunin sjalf er thad sem skiptir mali — tvo adskilin
+       `test()` myndu standast thott hvor vaeri i sinum stad.          */
+    ok("og hann les `bsd_live.json` i hana (sama faersla)",
+      /\["bsd_live\.json",\s*setBsdLive\]/.test(appSrc),
+      (appSrc.match(/bsd_live\.json[^\n]*/) || [""])[0]);
+  }
+
   const draw = async bsdLive => {
     const host = document.createElement("div");
     document.body.appendChild(host);
@@ -1352,8 +1385,36 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
   const m = cell("ARS", "Matches");
   ok(`ARS ber ${arsPlayed} leik(i) i yfirstandandi timabili — talan ur fixtures.json (fekk ${JSON.stringify(m)})`,
      m === String(arsPlayed));
-  ok(`og raunveruleg urslit GW1: mork a sig ${cell("ARS", "GC tot")}, CS ${cell("ARS", "CS %")}%`,
-     cell("ARS", "GC tot") === "0" && cell("ARS", "CS %") === "100");
+  /* OG SAMA VILLA SAT I LINUNNI BEINT FYRIR NEDAN ThA SEM VAR LOGUD
+     (8.9.2026). Athugasemdin haetti fyrir ofan; her stod afram
+     `GC tot === "0" && CS % === "100"` — urslit ARS i GW1 einni,
+     SKRIFUD. Eftir threr umferdir bera their 1 mark a sig og 67% hrein
+     bod, svo kaflinn fell an thess ad nokkud vaeri ad. Reglan sem var
+     skrifud fyrir nagrannann gildir her ord fyrir ord: **urslit eru
+     stadreynd i `fixtures.json` og profid a ad spyrja hana.**
+     Fullyrdingin er thar med ekki veikari heldur STERKARI en su gamla:
+     hun ber toluna a skjanum vid urslitin sjalf i hverri umferd sem
+     kemur, i stad thess ad muna eina.                                  */
+  const resultsOf = short => {
+    const tf = J("teams.json");
+    const t = (Array.isArray(tf) ? tf : tf.teams).find(x => x.short === short);
+    if (!t) return null;
+    const all = Array.isArray(realFix) ? realFix : realFix.fixtures;
+    const mine = all.filter(f => (f.team_h === t.id || f.team_a === t.id)
+      && (f.finished === true || f.finished_provisional === true));
+    let gc = 0, cs = 0;
+    for (const f of mine) {
+      const against = f.team_h === t.id ? f.team_a_score : f.team_h_score;
+      gc += Number(against) || 0;
+      if (Number(against) === 0) cs += 1;
+    }
+    return { n: mine.length, gc, cs: mine.length ? Math.round(100 * cs / mine.length) : null };
+  };
+  const arsRes = resultsOf("ARS");
+  ok(`og raunveruleg urslit: mork a sig ${cell("ARS", "GC tot")}, CS ${cell("ARS", "CS %")}% `
+     + `— leikjaskrain segir ${arsRes.gc} og ${arsRes.cs}% ur ${arsRes.n} leikjum`,
+     cell("ARS", "GC tot") === String(arsRes.gc)
+     && cell("ARS", "CS %") === String(arsRes.cs));
   /* Nylidi sem VAR ekki til i fyrra timabili ber nu tolu — thad er einmitt
      munurinn a syninni.                                                  */
   const covPlayed = playedOf("COV");
@@ -1382,7 +1443,30 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
   const body = () => host.textContent || "";
   ok("og skyringin segir hve margir leikir liggja ad baki",
      /This season so far: \d+ matches played/.test(body()));
-  ok("og HVERS VEGNA skota-dalkarnir eru tomir", /only cover/.test(body()));
+  /* ============================================================
+     SKYRINGIN VAR UPPTALNING OG VAR ORDIN RONG (5.9.2026)
+     ============================================================
+     Hér var leitad ad ordunum „only cover" — ur fostum texta sem taldi
+     upp „shots, xG, xGC and set-piece columns". Su upptalning var SONN
+     thegar hun var skrifud og VARD OSONN um leid og xG/xGC komu ur
+     `bsd_live` (24.8.2026): notandinn las ad xG vaeri tomt medan dalkurinn
+     bar tolu. Fost upptalning um lifandi gogn ureldist thegjandi — sama
+     aett og „the range is 4-10" i `SetPieces`.
+     Fullyrdingin er nu um REGLUNA: skyringin NEFNIR thá dalka sem eru
+     raunverulega tomir a skjanum, og hun ma ekki nefna dalk sem er thad
+     ekki.                                                             */
+  /* SKYRINGIN SEGIR REGLUNA, EKKI UPPTALNINGU (5.9.2026).
+     Her var leitad ad „only cover" ur fostum texta sem taldi upp
+     „shots, xG, xGC and set-piece columns". Su upptalning var SONN
+     thegar hun var skrifud og VARD OSONN um leid og xG/xGC komu ur
+     `bsd_live`: notandinn las ad xG vaeri tomt medan dalkurinn bar tolu.
+     Fullyrdingin er nu um regluna sjalfa — og um ad hun telji EKKI upp,
+     thvi upptalning er thad sem ureldist.                             */
+  ok("skyringin segir ad strik thydi ENGA heimild, aldrei null",
+     /has no source that covers this season/.test(body())
+     && /never means zero/.test(body()), body().slice(0, 200));
+  ok("og hun telur EKKI upp dalka (upptalning ureldist thegjandi)",
+     !/carries? them:/.test(body()) && !/shots, xG, xGC/.test(body()));
   ok("engin NaN/undefined a skjanum", !/\bNaN\b|\bundefined\b/.test(body()));
 
   /* AFTUR TIL BAKA: fyrra timabil ma ekki hafa breyst.                   */

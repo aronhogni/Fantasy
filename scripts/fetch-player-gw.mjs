@@ -104,7 +104,21 @@ const num = v => { const n = +v; return Number.isFinite(n) ? n : 0; };
    og thessi skrifud per timabil, letihladin.                           */
 const SLIM_STATS = ["mins","starts","pts","goals","assists","cs","gc","saves",
   "bonus","bps","xg","xa","xgc","dc","cbit","threat","creat","infl",
-  "recov","tack","yc","rc"];
+  "recov","tack","yc","rc",
+  /* ============================================================
+     `mp` — HVE MARGIR LEIKIR LIGGJA AD BAKI ThESSARI ROD (5.9.2026)
+     ============================================================
+     Slim-rodin LEGGUR SAMAN tvofalda umferd, svo ein rod getur borid
+     tvo leiki. Lesendur hafa hingad til giskad a thad ut fra `starts`
+     eda minutum — og sa skynjari MISSIR 22% raunverulegra tvofaldra
+     umferda (maelt: 30 af 135 i 2024/25), thvi 45+45 minutur an
+     byrjunar eru ogreinanlegar fra einum heilum leik.
+     Talan er thekkt HER, thar sem raðirnar eru enn per LEIK, svo hun
+     er skrifud i stad thess ad vera agiskud sidar. `computeConsistency`
+     taldi umferdir sem leiki og bar SUMMU ad throskuldi sem er per
+     leik — sama villa og badir DefCon-smidirnir baru (CLAUDE.md 16c).
+     ============================================================ */
+  "mp"];
 const SLIM_SRC = { mins:"minutes", pts:"total_points", goals:"goals_scored",
   cs:"clean_sheets", gc:"goals_conceded", xg:"expected_goals",
   xa:"expected_assists", xgc:"expected_goals_conceded",
@@ -269,6 +283,9 @@ for (const [key, dir] of Object.entries(SEASONS)) {
         seenStat[i] = true;                            // svidid ER til thetta timabil
         v[i] += Math.round(num(raw) * (SLIM_SCALE[f] || 1));
       }
+      /* `mp` er TALNING A RODUM, ekki svid ur CSV — thvi utan lykkjunnar.
+         Adeins leiknir leikir teljast: rod an minutna er ekki leikur.  */
+      if (num(r.minutes) > 0) { v[SLIM_STATS.indexOf("mp")] += 1; seenStat[SLIM_STATS.indexOf("mp")] = true; }
     }
   }
   /* NULLA UT SVID SEM BAR ALDREI GILDI ThETTA TIMABIL — sja ad ofan. */

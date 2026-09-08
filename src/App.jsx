@@ -3660,7 +3660,6 @@ export default function App() {
                       onInfo={() => setDetail({ kind:"player", id:sq.id })}
                       onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
                       onRotation={() => setRotIds([sq.id])}
-                      confirmed={lineupBy[`${sq.id}|${gw}`]}
                       onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
                       clubPlayed={playedByClub[byId[sq.id]?.team]} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                       dragId={dragId} setDragId={setDragId}
@@ -3706,7 +3705,6 @@ export default function App() {
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
                     onRotation={() => setRotIds([sq.id])}
-                    confirmed={lineupBy[`${sq.id}|${gw}`]}
                     onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
                       clubPlayed={playedByClub[byId[sq.id]?.team]} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                     dragId={dragId} setDragId={setDragId}
@@ -5945,7 +5943,12 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
      eiginleiki — naesti madur les hana og heldur ad spjaldid syni
      soluverd. `sellOf` stendur afram og skiptaglugginn les hana.     */
   dc, gwNow, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, fxNext3, seasonStarted, seasonGames, clubPlayed, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
+  /* `confirmed` ER FARID UR SIGNATURNNI (5.9.2026). Prop sem er send inn
+     og aldrei lesin er daudur kodi sem litur ut eins og eiginleiki —
+     sama regla og `sellTenths_` fyrr i dag. `lineupBy` stendur afram i
+     App.jsx thvi skrain er skrifud og geymd; thad er merkid a spjaldinu
+     sem notandinn bad um ad taka ut.                                   */
+  onInfo, onTransfer, onRotation, onCardClick, swapSel, fxNext3, seasonStarted, seasonGames, clubPlayed, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -6167,17 +6170,13 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
         )}
       </div>
       {/* Fínleg merkjaröð — aðeins það sem er athugavert */}
-      {/* STADFEST BYRJUNARLID — sterkasta merkid a spjaldinu thegar thad er
-          til, thvi thad er ekki spa heldur STADFESTING (lidin birtast 40-60
-          min fyrir leik). "BEKKUR" er thad sem kostar mest ad missa.     */}
-      {confirmed != null && (
-        <div style={{ ...S.confBadge,
-                      background: confirmed ? "#0a7a4a" : "#b3261e" }}
-          title={confirmed ? "CONFIRMED in the starting XI (from the match lineup)"
-                           : "CONFIRMED ON THE BENCH — he is NOT starting this match"}>
-          {confirmed ? "STARTS" : "BENCHED"}
-        </div>
-      )}
+      {/* STADFEST BYRJUNARLID ER EKKI A SPJALDINU (5.9.2026, beidni
+          notandans: „eg nota appid ekki til ad sja byrjunarlid").
+          `lineups.json` er skrifud afram og `confirmed` er reiknad afram
+          — thad er BIRTINGIN ein sem for, thvi merkid svarar spurningu
+          sem hann spyr annars stadar. Skrain sjalf ma ekki hverfa: hun
+          er OENDURHEIMTANLEG (byrjunarlid birtast 40-60 min fyrir leik
+          og hverfa ur glugganum eftir a), sama regla og `history/`.   */}
       <div style={S.sigRow}>
         {/* BEKKUR-MERKID (`pcBench`, ordid „BENCH") ER FARID 25.8.2026 AD
             BEIDNI NOTANDANS og GREYINGIN BER MERKID EIN. Thad er sama
