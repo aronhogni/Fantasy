@@ -23,6 +23,9 @@ concurrency:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    # Hangandi keyrsla heldur concurrency-hopnum i 6 klst (sjalfgildi) og
+    # naesti cron fellur nidur; 30 min er margfold lengsta maelda keyrsla.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 

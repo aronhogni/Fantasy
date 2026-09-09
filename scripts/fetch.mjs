@@ -3791,6 +3791,19 @@ async function fetchEuro() {
   out.forEach(m => { m.comp_label = COMP_LABEL[m.comp] || m.comp; });
   Object.values(byTeam).forEach(arr => arr.forEach(x => { x.comp_label = COMP_LABEL[x.comp] || x.comp; }));
 
+  /* TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN (9.9.2026). Svari engin heimild
+     var skrifad `fixtures: []` OG rodin skrad GRAEN ("no source answered") —
+     og fra 31.8. hefdi commit-hlidid (validate-data: 104 -> 0) tha hafnad
+     OLLU snapshot-inu. Nu er fyrri skrain latin standa og rodin er raud.  */
+  if (!found.length) {
+    let prev = null;
+    try { prev = JSON.parse(await readFile(`${DATA}/euro_fixtures.json`, "utf8")); } catch {}
+    if (prev?.fixtures?.length) {
+      record("euro_fixtures", false, prev.fixtures.length,
+        `no source answered - previous file kept (${prev.fixtures.length} fixtures from ${prev.updated ?? "?"})`);
+      return;
+    }
+  }
   await writeJSON("euro_fixtures.json", {
     updated: status.updated, sources_ok: found,
     fixtures: out, by_team: byTeam, participation,
@@ -3999,6 +4012,10 @@ async function fetchInjuries() {
   const seasonYear = 2026;
   let d = await apiSports(`/injuries?league=39&season=${seasonYear}`);
   let via = `league+season=${seasonYear}`;
+  /* Reikningurinn lokadur? Lesid af FYRSTA svarinu, adur en `d` er
+     endurskrifad i leikdaga-lykkjunni — rodin ma ekki verda graen ut a
+     "engir leikdagar i glugganum" medan adgangurinn er i raun farinn.    */
+  const accountBlocked = /suspend|denied|not subscribed|blocked/i.test(errTxt(d));
   if (!d.response?.length) {
     if (errTxt(d)) console.warn(`API-Sports injuries (${via}): ${errTxt(d)} — using the matchday route`);
     /* EMPÍRÍSKT MÆLT (keyrsla 2): fría þrepið leyfir aðeins ±1 DAGS
@@ -4109,6 +4126,23 @@ async function fetchInjuries() {
       fixture_date: it.fixture?.date ?? null };
     if (fplId) out.push({ fpl_id: fplId, ...rec });
     else unmatched.push(`${rec.name_api} (${rec.team_api})`);
+  }
+  /* GATID SEM `errs.length && !merged.length` NAER EKKI (9.9.2026): utan
+     ±1 dags gluggans er `dates` tomt, engin villa og engin rod — og thetta
+     skrifadi `players: []` ofan a fulla skra fra leikdeginum adur (commit-
+     sagan ber 70 -> 0 thann 22.8.) med GRAENA rod. Fra 31.8. hafnar
+     commit-hlidid nakvaemlega theirri breytingu (`players N -> 0`) og
+     hefdi stodvad ALLA dagskeyrsluna. Fyrri skra stendur; `ok` fylgir
+     adganginum, ekki tomleikanum.                                        */
+  if (!out.length && !unmatched.length) {
+    let prev = null;
+    try { prev = JSON.parse(await readFile(`${DATA}/injuries.json`, "utf8")); } catch {}
+    if (prev?.players?.length) {
+      record("apisports_injuries", !accountBlocked, prev.players.length,
+        `${via} — previous file kept (${prev.players.length} rows from ${prev.updated ?? "?"})`
+        + (accountBlocked ? " — account blocked, see apisports_account" : ""));
+      return;
+    }
   }
   await writeJSON("injuries.json", { updated: status.updated, plan, via,
     note: "Injury type and reason from API-Sports /injuries for upcoming matchdays. FPL status still governs availability; this ENRICHES it. In preseason (no matchdays ahead inside the window) the list is empty, as it should be. `unmatched` rows are expected to be non-zero: this source carries squad members FPL does not (academy, third keepers, departed), so a rate below 100% is the correct outcome — but `unresolved_teams` must always be empty, because a club name that does not resolve loses EVERY row for that club.",
@@ -5474,7 +5508,7 @@ async function deriveLastGwReport() {
 
   if (curGw != null) {
     const built = await buildLiveGwReport(curGw);
-    if (built) { record("last_gw", true, built.players.length, `GW${curGw} ${built.season} · ur live/gw${curGw}.json`); return; }
+    if (built) { record("last_gw", true, built.players.length, `GW${curGw} ${built.season} · from live/gw${curGw}.json`); return; }
   }
   await buildArchiveGwReport();
 }
