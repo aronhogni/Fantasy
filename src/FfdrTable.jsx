@@ -22,7 +22,7 @@
       og haegt var ad VELJA umferdir, thvi runur koma og fara vid hverja
       breytingu og React fjarlaegir longhand-gildin i odefineradri rod.
    ============================================================ */
-import React, { useState } from "react";
+import { useState } from "react";
 import { tierOf, TIER_BG, TIER_FG, TIER_NAME, greenRuns } from "./model.js";
 import { C, S } from "./appStyles.js";
 import { Crest } from "./Crest.jsx";
@@ -82,8 +82,11 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
   const avgFor = (tid, p) => {
     let n = 0, sum = 0;
     for (const g of gws) for (const f of (fixByTeamGw[tid]?.[g] || [])) {
-      const d = diffOf(tid, f, p) ?? f.fdr;
-      if (d != null) { sum += d; n++; }
+      /* SAMA PROF SEM `items` NOTAR: holf sem er blankt ma ekki fara i
+         medaltalid sem tala — annars sagdi skjarinn "—" i holfinu og
+         "NaN" i Def/Att a somu rod.                                      */
+      const raw = diffOf(tid, f, p) ?? f.fdr;
+      if (Number.isFinite(+raw)) { sum += +raw; n++; }
     }
     return n ? sum / n : null;
   };
@@ -187,8 +190,8 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
         </div>
       )}
       <div style={S.muted}>
-        GW{gws[0]}–{gws[gws.length-1]} {"· click"} <b>{"Def"}</b> {"or"} <b>{"Att"}</b> {"to sort by that difficulty (lower = easier)."}
-        <b> {"This is an ABSOLUTE scale"}</b> {"— comparable between teams, so a weak team is red even in an easy match. That is right for \"who should I buy\". The fixture tiles on player cards are"} <b>{"relative within the team"}</b> {"— for \"when should I play him\"."}
+        {gws.length ? `GW${gws[0]}–${gws[gws.length-1]}` : "No open gameweeks in range"} {"· click"} <b>{"Def"}</b> {"or"} <b>{"Att"}</b> {"to sort by that difficulty (lower = easier)."}
+        <b> {"This is an ABSOLUTE scale"}</b> {"— comparable between teams, so a weak team is red even in an easy match. That is right for \"who should I buy\". The fixture tiles on player cards use the SAME absolute scale; only"} <b>{"Buy windows"}</b> {"is relative to the player's own average — for \"when should I buy him\"."}
       </div>
       <div style={S.ffdrScroll}>
         <table style={S.ffdrTable}>

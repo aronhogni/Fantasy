@@ -181,5 +181,37 @@ console.log("\n3) hver skra sem er sott verdur ad rata i vidmot");
   ok(`fann sottar skrar (${setters.length})`, setters.length >= 10);
 }
 
+/* ---------- 4. INNFLUTNINGAR SEM ERU ALDREI NOTADIR ---------- */
+console.log("\n4) hvert innflutt nafn verdur ad vera notad utan innflutningslinunnar");
+{
+  /* `import React` er DAUD ThYNGD med automatic JSX-runtime (baedi
+     @vitejs/plugin-react og tests/jsx-loader.mjs nota hann). Tiltektin
+     31.8.2026 fjarlaegdi tolf slika og FIMM lifdu hana af (BuyWindows,
+     Crest, FfdrTable, GwReport, Teams) — thvi enginn vordur taldi thá.
+     Tiltekt sem enginn ver endurtekur sig; thess vegna er kaflinn her.
+     Reglan er almenn: hvert nafn sem er flutt inn verdur ad koma fyrir
+     minnst einu sinni i KODANUM (athugasemdir skornar burt) utan
+     innflutningslinunnar sjalfrar. `React.Fragment` telst notkun.       */
+  let bad = 0, checked = 0;
+  for (const [f, s] of all) {
+    const code = noComments(s);
+    const importRe = /^import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s+["'][^"']+["'];?/gm;
+    for (const m of code.matchAll(importRe)) {
+      const names = [];
+      if (m[1]) names.push(m[1]);
+      if (m[2]) for (const n of m[2].split(",")) { const nm = n.trim().split(/\s+as\s+/).pop(); if (nm) names.push(nm); }
+      const rest = code.slice(0, m.index) + code.slice(m.index + m[0].length);
+      for (const n of names) {
+        checked++;
+        if (!new RegExp("\\b" + n.replace(/\$/g, "\\$") + "\\b").test(rest)) {
+          bad++; console.log(`     ${f}: ${n}`);
+        }
+      }
+    }
+  }
+  ok("engin innflutt nofn onotud", bad === 0);
+  ok(`safnid taldi raunverulega innflutninga (${checked})`, checked >= 100);
+}
+
 console.log(`\nKYRRSTODU-TENGINGAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

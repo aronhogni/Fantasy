@@ -613,7 +613,12 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
        tala er ENGIN tala. An thessa gat `fx.fdr` sjalft borid NaN her
        inn, og tha var vardan nedar gagnslaus — hun ver adra utgonguna
        af tveimur. Sama villa, tveir stadir.                          */
-    if (!me || !opp) return Number.isFinite(+fx.fdr) ? fx.fdr : null;
+    /* `null` OG `""` ERU EKKI TOLUR: `Number.isFinite(+null)` er satt (0)
+       og `null * W.fdr` er 0, svo leikur med `fdr: null` hefdi ordid
+       LETTASTI leikur deildarinnar (d = 1,00) — medan `undefined` gaf null.
+       Sama vantandi tala, tvo svor. Nu er hun ein: null (9.9.2026).       */
+    const fdrNum = (fx.fdr != null && fx.fdr !== "" && Number.isFinite(+fx.fdr)) ? +fx.fdr : null;
+    if (!me || !opp) return fdrNum;
     const W = DIFF_W[pos] || DIFF_W[3];
     /* 2-tímabila blöndun með KVIKRI vog per liði — hvert lið hefur sína
        eigin leikjatölu (frestaðir leikir gera þær ólíkar). Sjá prevWeight. */
@@ -680,7 +685,8 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
        2) Kvarðaleiðréttingin færir þá blöndu á MEASURED-kvarðann.
        3) Markaðurinn blandast SÍÐAST því hann er þegar á rétta kvarðanum
           og er best kvarðaða inntakið — hann á ekki að þynnast eftir á. */
-    let core = fx.fdr * W.fdr + (own * 3) * W.own + (them * 3) * W.opp;
+    if (fdrNum == null) return null;
+    let core = fdrNum * W.fdr + (own * 3) * W.own + (them * 3) * W.opp;
     let usedElo = false;
     if (W.elo) {
       const me_e = eloByTeam[teamId]?.elo, op_e = eloByTeam[fx.opp]?.elo;

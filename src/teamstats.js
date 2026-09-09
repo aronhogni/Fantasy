@@ -308,8 +308,13 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
        UNDIR RONGU NAFNI er verri en tomur dalkur (kafli 8i).
        BSD naer adeins yfir 2025/26, svo dalkarnir eru `season_locked`. */
     const bsdXg = num(b.xg_pg), bsdXgc = num(b.xgc_pg);
-    const xgTot  = bsdXg  != null && m ? +(bsdXg  * m).toFixed(1) : null;
-    const xgcTot = bsdXgc != null && m ? +(bsdXgc * m).toFixed(1) : null;
+    /* NEFNARINN UR SOMU HEIMILD (CLAUDE.md kafli 12): BSD per-leik tala
+       sinnum BSD-leikjafjoldi, ekki `m` ur luck.json (sem ber 46 Championship-
+       leiki hja nylidunum). Jafnt 38 fyrir PL-lidin i dag — thetta er regla,
+       ekki lifandi villa.                                                 */
+    const bm = num(b.matches);
+    const xgTot  = bsdXg  != null && bm ? +(bsdXg  * bm).toFixed(1) : null;
+    const xgcTot = bsdXgc != null && bm ? +(bsdXgc * bm).toFixed(1) : null;
     const row = {
       id: t.id, short: t.short, name: t.name, team: t,
       matches: m,

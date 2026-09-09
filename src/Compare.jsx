@@ -33,7 +33,9 @@
    ============================================================ */
 
 import { useEffect, useMemo, useState } from "react";
-import { num, liveSeasonRow, sumGwRange, gwBlindKeys } from "./stats.js";
+import { num, liveSeasonRow, sumGwRange, gwBlindKeys, indexImminentByTeam, matchImminent,
+         startRisk, POS_LABEL as POS, fmtPrice } from "./stats.js";
+import { advise, contextFactors } from "./advisor.js";
 import { useGwSeasonFile, gwSeasonsOf, nextRange, lastNRange, rangeBlind,
          RANGE_BLIND_BADGE, RANGE_LIVE_BADGE } from "./gwRange.js";
 import { photoNext } from "./Crest.jsx";
@@ -44,7 +46,6 @@ const C = {
   amber:"#c98a00", red:"#d92d3c", amberBg:"#fff6e0",
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
 
 const per90 = (v, m) => (!m || m <= 0 || v == null) ? null : (v / m) * 90;
 
@@ -61,8 +62,6 @@ function SafeImg({ src, style }) {
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */
-import { advise, contextFactors } from "./advisor.js";
-import { indexImminentByTeam, matchImminent, startRisk } from "./stats.js";
 
 export const ROWS = [
   { grp: "Basics" },
@@ -683,7 +682,7 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                             <div style={S.pName}>{p.web_name}</div>
                             <div style={S.pMeta}>
                               {Crest && t ? <Crest team={t} size={11} /> : null}
-                              {t?.short} · {POS[p.element_type]} · £{((p.now_cost ?? 0)/10).toFixed(1)}
+                              {t?.short} · {POS[p.element_type]} · {fmtPrice(p.now_cost)}
                             </div>
                             <button style={S.rm} onClick={() => onRemove(p.id)}>{"remove"}</button>
                           </div>

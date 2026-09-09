@@ -44,6 +44,9 @@
 import { useMemo } from "react";
 import { interp } from "./interp.js";
 import { PenaltyIcon, FreeKickIcon, CornerIcon } from "./Icons.jsx";
+import { SP_KINDS as SP_KINDS_BASE, setPieceRanks as ranksBase, spRanges as rangesBase,
+         setPieceBadges, setPieceCount } from "./setpieces.js";
+import { POS_LABEL as POS, POS_COLOR, fmtPrice } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -51,8 +54,6 @@ const C = {
   amber:"#c98a00", amberBg:"#fff6e0", red:"#d92d3c",
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
-const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 /* Merkin sem lika birtast a leikmannaspjoldum — eitt satt um taknin.
 
@@ -64,119 +65,14 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
    Nu eru thad SVG-ikon (src/Icons.jsx) sem eru byggd a thremur olikum
    SILHUETTUM, thvi i smarri staerd er silhuettan allt. `short` heldur ser
    sem texta-fallback (aria/title og prof).                              */
-export const SP_KINDS = [
-  { key:"pen", field:"penalties_order",                      Icon:PenaltyIcon,  tint:"#b3261e", label: "Penalties",  short:"P" },
-  { key:"fk",  field:"direct_freekicks_order",               Icon:FreeKickIcon, tint:"#1b5e9c", label: "Free kicks", short:"F" },
-  { key:"ck",  field:"corners_and_indirect_freekicks_order", Icon:CornerIcon,   tint:"#0a7a4a", label: "Corners",    short:"C" },
-];
-
-/* ============================================================
-   ROD INNAN LIDS — "FYRSTI TAKI" ER LAEGSTA RODUN LIDSINS, EKKI order===1
-
-   MAELT 31.7.2026 a raungognum (data/players.json, 20 lid):
-     penalties_order                        1-5   (1 hja 20/20 lidum)
-     direct_freekicks_order                 1-5   (1 hja 20/20 lidum)
-     corners_and_indirect_freekicks_order   4-10  (1 hja  0/20 lidum!)
-   FPL notar ANNAN GRUNN fyrir horn. Daemi (Arsenal): Rice=5, Saka=6,
-   Madueke=7, Odegaard=8 — Rice ER hornataki lidsins thott talan se 5.
-
-   OG SVO ENDURGRUNNADI FPL HORNIN, 13.8.2026: milli dagskeyrslanna 12.8 og
-   13.8 fór svidid ur 2-12 (1 hja 0/20) i 1-6 (1 hja 18/20). Pipeline snertir
-   ekki toluna (`fetch.mjs:262` afritar hana), svo thetta var FPL sjalft.
-   REGLAN LIFDI ThETTA AF OBREYTT — rod innan lids er rett a badum grunnum —
-   og tvo lid (FUL, NEW) hafa enn ENGA 1, svo hun er enn NAUDSYNLEG.
-   ThAD SEM BROTNADI VAR VORDURINN: fullyrdingin "horn na aldrei 1" var
-   fullyrding um FPL, ekki um regluna okkar, og hun fell. Verra: hefdi hun
-   verid slokud i stad thess ad vera endurskrifud vaeri ekkert eftir sem
-   fellur ef einhver ferdi `order === 1` inn aftur — sú regla virkar nu fyrir
-   18 af 20 lidum. Vordurinn er thess vegna TVISKIPTUR i set-pieces.mjs:
-   TILBUID lid (rodun 4/7/9) sem getur ALDREI ordid tomt, plus lifandi
-   lidin sem hafa enga 1, TALIN.  Sja CLAUDE.md 5b um tomar fullyrdingar.
-
-   TVAER LIFANDI VILLUR SEM THETTA LEIDRETTIR:
-     1. "adeins fyrsti taki" (order === 1) syndi EKKERT fyrir horn.
-     2. setPieceBadges notadi `order <= 3`, svo HORNATAKAR FENGU ALDREI
-        IKON a leikmannaspjaldi — Saka bar ekkert hornamerki.
-   Bædi voru thogul: talan var til, hun var bara aldrei <= 3.
-
-   Lausnin er ROD INNAN LIDS: rank 1 = sa sem tekur thau, hvad sem
-   FPL-talan er. Thad er rett fyrir ALLAR THRJAR tegundir (fyrir viti og
-   aukaspyrnur er laegsta talan 1 hvort sem er) og tholir ad FPL breyti
-   grunninum.
-   ============================================================ */
-export function setPieceRanks(players) {
-  const byId = new Map();
-  for (const k of SP_KINDS) {
-    const byTeam = new Map();
-    for (const p of players || []) {
-      const o = p?.[k.field];
-      if (o == null) continue;
-      if (!byTeam.has(p.team)) byTeam.set(p.team, []);
-      byTeam.get(p.team).push({ p, order: o });
-    }
-    for (const list of byTeam.values()) {
-      list.sort((a, b) => a.order - b.order);
-      list.forEach((e, i) => {
-        if (!byId.has(e.p.id)) byId.set(e.p.id, []);
-        byId.get(e.p.id).push({ ...k, order: e.order, rank: i + 1 });
-      });
-    }
-  }
-  return byId;
-}
-
-/* SVIDIN EINS OG THAU ERU I DAG — REIKNUD, EKKI SKRIFAD I TEXTA.
-   13.8.2026 endurgrunnadi FPL hornarodunina (2-12 med 0/20 lidum a 1 ->
-   1-6 med 18/20 a 1) og THRIR STADIR i appinu fullyrtu aframhaldandi
-   "4-10 og aldrei 1": thessi haus, skyringin i flipanum og `note` a
-   ck-dalkinum — sa sidasti med ordinu MEASURED fyrir framan. Fost tala um
-   lifandi gogn urealdist thogult. Skyringin i flipanum les nu ur THESSU
-   falli, svo hun getur ekki farid a skjon vid gognin aftur.
-   `teamsNoOne` er talan sem SKIPTIR MALI: lid sem hafa ENGA 1 eru einu
-   tilvikin thar sem `order === 1` finnur engan taka.                      */
-export function spRanges(players) {
-  const out = {};
-  for (const k of SP_KINDS) {
-    const vals = [], byTeam = new Map();
-    for (const p of players || []) {
-      const o = p?.[k.field];
-      if (o == null) continue;
-      vals.push(o);
-      byTeam.set(p.team, Math.min(byTeam.get(p.team) ?? Infinity, o));
-    }
-    out[k.key] = vals.length ? {
-      min: Math.min(...vals), max: Math.max(...vals), n: vals.length,
-      teams: byTeam.size,
-      teamsWithOne: [...byTeam.values()].filter(m => m === 1).length,
-      teamsNoOne:   [...byTeam.values()].filter(m => m > 1).length,
-    } : null;
-  }
-  return out;
-}
-
-/* HVERSU MARGAR TEGUNDIR TEKUR HANN FYRSTUR?
-   Sa sem tekur BAEDI viti og horn er annad slag i fantasy en sa sem
-   tekur adeins horn: hann er a fleiri en einni leid ad stigum og missir
-   thaer ekki allar thott ein hverfi. Thess vegna er hann FEITLETRADUR i
-   lida-spjaldinu — talan var THEGAR a skjanum (thrjar linur) en hun var
-   ekki LAESILEG fyrr en hun var merkt.
-
-   Talid a RODUN INNAN LIDS (rank === 1), ekki a FPL-tolunni: horn na
-   aldrei 1 (sja ofar), svo `order === 1` hefdi talid hornin ur.        */
-function setPieceCount(p, ranks) {
-  const list = ranks?.get?.(p?.id);
-  if (!list) return 0;
-  return list.filter(b => b.rank === 1).length;
-}
-
-/* Ikon-rod fyrir eitt spjald. `ranks` ur setPieceRanks; an hennar er
-   ekkert birt — betra en ad birta rangt (sbr. hornin ofar).            */
-export function setPieceBadges(p, ranks, { maxRank = 2 } = {}) {
-  const list = ranks?.get?.(p?.id);
-  if (!list) return null;
-  const out = list.filter(b => b.rank <= maxRank);
-  return out.length ? out : null;
-}
+/* Ikonin eru vidmot og bua her; rokfraedin (rodun, svid, merki) er i
+   src/setpieces.js. `SP_KINDS` her er SAMA rodin med `Icon` baett vid,
+   svo allir sem lesa `k.Icon` (flipinn, spjoldin) halda ser.           */
+const ICON = { pen: PenaltyIcon, fk: FreeKickIcon, ck: CornerIcon };
+export const SP_KINDS = SP_KINDS_BASE.map(k => ({ ...k, Icon: ICON[k.key] }));
+export const setPieceRanks = (players) => ranksBase(players, SP_KINDS);
+export const spRanges = (players) => rangesBase(players, SP_KINDS);
+export { setPieceBadges, setPieceCount };
 
 /* HVER OGNAR UR FOSTUM LEIKATRIDUM — hin helmingurinn af spurningunni.
    Flipinn hefur svarad "hver TEKUR hornid" en ekki "hver kemst a endann
@@ -324,7 +220,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
                         <span style={{ ...S.pos, color: POS_COLOR[hit.p.element_type] }}>
                           {POS[hit.p.element_type]}
                         </span>
-                        <span style={S.cost}>£{((hit.p.now_cost ?? 0) / 10).toFixed(1)}</span>
+                        <span style={S.cost}>{fmtPrice(hit.p.now_cost)}</span>
                       </button>
                     )}
                   </div>

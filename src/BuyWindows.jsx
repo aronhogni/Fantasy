@@ -34,7 +34,8 @@
    3. RADA-ThAKID ER SAGT A SKJANUM. 587 radir x 38 holf eru 22.000 holf;
       thakid er thvi raunverulegt og "engin thogul thok" gildir.
    ============================================================ */
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { POS_LABEL as POS, POS_COLOR, fmtPrice } from "./stats.js";
 import { TIER_BG, TIER_FG, TIER_NAME, MEASURED_POS } from "./model.js";
 import { ffdrSeries, buyWindows, meanDifficulty, relTier,
          MIN_WINDOW, MAX_WINDOWS } from "./buywindow.js";
@@ -45,8 +46,6 @@ const C = {
   amber:"#c98a00", red:"#d92d3c",
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
-const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 /* TVEIR KVARDAR, TVAER SPURNINGAR — sja hausinn a `relTier` i buywindow.js.
    „his own" er SJALFGEFID thvi thad er spurningin sem sy'nin er til fyrir:
@@ -295,7 +294,7 @@ export default function BuyWindows({
                     onClick={() => onPickPlayer && onPickPlayer(p.id)}>{p.web_name}</button>
                   <span style={{ ...S.pos, color: POS_COLOR[p.element_type] }}>
                     {POS[p.element_type]}</span>
-                  <span style={S.price}>{(p.now_cost / 10).toFixed(1)}</span>
+                  <span style={S.price}>{fmtPrice(p.now_cost, { pound: false })}</span>
                   {/* STADAN ER MERKT, EKKI LOGD INN I TOLURNAR — gluggarnir
                       eru um LEIKINA (sja haus buywindow.js).             */}
                   {p.status && p.status !== "a" && (

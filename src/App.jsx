@@ -490,6 +490,9 @@ export default function App() {
      Hun er thvi geymd her ADSKILIN. Umferdin fylgir med: „opinbert" an thess
      ad segja FYRIR HVADA UMFERD er fullyrding sem eldist thegjandi.       */
   const [official, setOfficial] = useState(null); // {gw, cap, vice} | null
+  /* Hvada (lid, umferd) opinberi fyrirlidinn var sidast lesinn inn fyrir —
+     sja picks-effectid: hann er adeins settur thegar thetta breytist.      */
+  const officialGwRef = React.useRef(null);
   /* STADA TENGINGARINNAR. Adur var flash("Tengt lid X") sent SAMSTUNDIS —
      ADUR en nokkud var sannreynt — og ef soknin brast var thad ThOGULT
      (`catch { setTotalPts(null) }`). Notandinn sa thvi "tengt" og svo
@@ -963,8 +966,22 @@ export default function App() {
           });
           const c = d.picks.find(p => p.is_captain);
           const v = d.picks.find(p => p.is_vice_captain);
-          if (c) setCaptain(c.element);
-          if (v) setVice(v.element);
+          /* FYRIRLIDINN ER ADEINS LESINN INN THEGAR OPINBERA UMFERDIN (EDA
+             LIDID) BREYTIST (9.9.2026). Effectid keyrir vid hvert `liveTick`
+             (60 s medan leikur er i gangi) og vid `refreshOfficial()` ur
+             endurstillingar-hnoppunum. Med oskilyrtu setCaptain hvarf
+             fyrirlidi sem notandinn valdi fyrir NAESTU umferd innan minutu
+             medan leikur stod yfir, og „↺ transfers" — sem lofar ad halda
+             uppstillingunni — skipti um fyrirlida thegjandi. `official`
+             uppfaerist afram i hvert sinn; „↺ my FPL team" les hann thadan
+             (kafli 14 i CLAUDE.md), svo opinberi fyrirlidinn tapast ekki. */
+          const officialKey = `${entryId}:${picksGw}`;
+          const officialChanged = officialGwRef.current !== officialKey;
+          officialGwRef.current = officialKey;
+          if (officialChanged) {
+            if (c) setCaptain(c.element);
+            if (v) setVice(v.element);
+          }
           setOfficial({ gw: picksGw, cap: c?.element ?? null, vice: v?.element ?? null });
           /* STADFESTING A ThVI SEM SKIPTIR: lidid UPPFAERDIST. */
           setConn(cc => ({ ...cc, state:"picks", picks:true,
@@ -1007,6 +1024,13 @@ export default function App() {
   useEffect(() => {
     if (!PROXY_URL || !rivals.length) return;
     let alive = true;
+    /* SAMA UMFERD SEM EIGID LID ER SOTT FYRIR (9.9.2026). FPL birtir `picks`
+       fyrst eftir frest, svo sokn a umferd sem er ekki byrjud skilar 404 —
+       og thad er 3–4 daga i hverri viku. Adur var sott a `gw` (umferdina sem
+       er verid ad skipuleggja), svo hver andstaedingur sagdi „ekkert lid
+       skrad" alla thessa daga thott hann aetti lid i sidustu umferd.          */
+    const lastStartedR = latestStartedGw(events);
+    const picksGwR = (lastStartedR != null && gw > lastStartedR) ? lastStartedR : gw;
     (async () => {
       for (const r of rivals) {
         try {
@@ -1019,7 +1043,7 @@ export default function App() {
           }
           let picks = null, gwPts = null, totalPts = null, capId = null;
           try {
-            const d = await (await fetch(`${PROXY_URL}?path=fpl-picks&id=${r.id}&gw=${gw}`)).json();
+            const d = await (await fetch(`${PROXY_URL}?path=fpl-picks&id=${r.id}&gw=${picksGwR}`)).json();
             if (Array.isArray(d?.picks) && d.picks.length) {
               picks = d.picks.map(x => x.element);
               capId = d.picks.find(x => x.is_captain)?.element ?? null;
@@ -1034,7 +1058,7 @@ export default function App() {
       }
     })();
     return () => { alive = false; };
-  }, [rivals, gw]);
+  }, [rivals, gw, events]);
 
   /* ============================================================
      ID-GERDIN VERDUR AD VERA EIN — TVITEKNINGARVORNIN BROTNADI VID
@@ -4695,7 +4719,7 @@ export default function App() {
                         {mine.length > 3 && <span style={S.muted}>+{mine.length - 3}</span>}
                       </div>}
                     </>
-                  ) : <div style={S.rivalMeta}>{d.error ? "could not be fetched — is the ID right?" : "no squad registered for this gameweek yet (normal in preseason)"}</div>}
+                  ) : <div style={S.rivalMeta}>{d.error ? "could not be fetched — is the ID right?" : "no squad for this gameweek yet"}</div>}
                 </div>
               );
             })}
@@ -5877,7 +5901,10 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
             const w = weatherByFx?.[f.id];
             const L = liveByFx?.[f.id];
             const live = L?.started && !L?.finished;
-            const done = L?.finished || f.finished;
+            /* `fixturePlayed` telur `finished_provisional` med — `finished`
+               flettist ~3 dogum sidar (CLAUDE.md kafli 1), svo leikur sem var
+               buinn syndi kickoff-timann i stad urslita i thrja daga.       */
+            const done = L?.finished || fixturePlayed(f);
             const hs = L?.h?.score ?? f.team_h_score, as = L?.a?.score ?? f.team_a_score;
             /* ============================================================
                MORK OG ASSIST ERU TVAER LINUR, EKKI EIN (25.8.2026)
@@ -5921,7 +5948,9 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
             // (nafn + merki), ekki á blokk sem þenur sig yfir hálfa röðina.
             const pill = (team, home, right) => {
               const oppId = home ? f.team_a : f.team_h;
-              const fdr = home ? (f.team_h_difficulty ?? 3) : (f.team_a_difficulty ?? 3);
+              /* Vantandi FDR er null, ekki „hlutlaust 3" — omaeld tala sem
+                 litur ut eins og maeling (CLAUDE.md kafli 8).               */
+              const fdr = home ? f.team_h_difficulty : f.team_a_difficulty;
               const d = diffOf ? diffOf(team === H ? f.team_h : f.team_a,
                 { opp: oppId, home, fdr, kickoff: f.kickoff_time }, 2) : null;
               const t = d != null ? tierOf(d) : null;

@@ -420,7 +420,9 @@ export const STAT_DEFS = [
   /* --- band: G+A --- */
   { key:"gi", label:"Goals + assists", short:"G+A", group:"attack", band:"G+A",
     dec:0, hi:true, derived:true, note:"Goal involvements: goals plus assists.",
-    get:p=>(num(p.goals_scored)??0)+(num(p.assists)??0) },
+    /* BAEDI VANTANDI -> null, EKKI 0 (sama regla og net_transfers_event). */
+    get:p=>{ const g=num(p.goals_scored), a=num(p.assists);
+             return (g==null&&a==null) ? null : (g??0)+(a??0); } },
 
   /* --- band: Goals --- */
   { key:"goals_scored", label:"Goals", group:"attack", band:"Goals",
@@ -828,8 +830,9 @@ export const STAT_DEFS = [
   { key:"gi_minus_xgi", label:"G+A − xGI", short:"GA−xGI", group:"attack", band:"Over/under",
     dec:2, hi:true, derived:true, signed:true,
     note:"The total gap between real and expected involvements — the single strongest luck signal. A big negative is the classic \"due\" player; that is exactly what the IG score is built on.",
-    get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0), x=num(p.expected_goal_involvements);
-             return x==null?null:gi-x; } },
+    get:p=>{ const g=num(p.goals_scored), a=num(p.assists), x=num(p.expected_goal_involvements);
+             if (x==null || (g==null&&a==null)) return null;
+             return (g??0)+(a??0)-x; } },
 
 
   /* ================= VORN ================= */
@@ -1555,6 +1558,21 @@ export function buildLeaderboard({
 
 export const POS_ORDER = { GK:1, DEF:2, MID:3, FWD:4 };
 
+/* EIN TAFLA FYRIR STODU-HEITI OG -LITI (9.9.2026). Samt sem adur voru
+   `{1:"GK",…}` og hex-litirnir afritadir i sjo .jsx-skrar hver fyrir sig;
+   afritud tafla er tvaer toflur sem reka i sundur (CLAUDE.md kafli 12).   */
+export const POS_LABEL = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
+export const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
+
+/* VERD I TIUNDUM -> "£5.5"; VANTANDI VERD -> "—", EKKI "£0.0".
+   `(p.now_cost ?? 0) / 10` stod a fjorum stodum og hefdi birt £0.0 fyrir
+   mann sem a ekkert verd — NULL ER EKKI NULL (CLAUDE.md kafli 8). FPL
+   sendir now_cost i dag fyrir alla, svo thetta er samningur, ekki
+   lifandi villa.                                                        */
+export const fmtPrice = (tenths, { pound = true } = {}) =>
+  (tenths == null || !Number.isFinite(+tenths)) ? "—"
+    : `${pound ? "£" : ""}${(+tenths / 10).toFixed(1)}`;
+
 /* Samtala umferdarinnar — thad sem "gerdist" i tolum. */
 export function gwTotals(rows) {
   const t = { players:0, goals:0, assists:0, cs:0, saves:0, yellow:0, red:0, og:0,
@@ -1594,12 +1612,14 @@ export function teamsWithCleanSheet(fixtures) {
 /* Afleiddar tolur per rod — reiknadar EINU SINNI, notadar allsstadar. */
 export function withDerived(rows) {
   return rowsOf(rows).map(r => {
-    const gi = (r.goals ?? 0) + (r.assists ?? 0);
+    /* Vantandi tala a annarri hlid mismunar gefur null, ekki -xG — sama
+       vordur sem gc_minus_xgc bar thegar, nu a ollum fjorum.              */
+    const gi = (r.goals == null && r.assists == null) ? null : (r.goals ?? 0) + (r.assists ?? 0);
     return {
       ...r, gi,
-      gi_minus_xgi: r.xgi == null ? null : +(gi - r.xgi).toFixed(2),
-      g_minus_xg:   r.xg  == null ? null : +((r.goals ?? 0) - r.xg).toFixed(2),
-      a_minus_xa:   r.xa  == null ? null : +((r.assists ?? 0) - r.xa).toFixed(2),
+      gi_minus_xgi: (r.xgi == null || gi == null) ? null : +(gi - r.xgi).toFixed(2),
+      g_minus_xg:   (r.xg  == null || r.goals == null) ? null : +(r.goals - r.xg).toFixed(2),
+      a_minus_xa:   (r.xa  == null || r.assists == null) ? null : +(r.assists - r.xa).toFixed(2),
       gc_minus_xgc: (r.xgc == null || r.gc == null) ? null : +((r.gc) - r.xgc).toFixed(2),
     };
   });
@@ -1673,6 +1693,7 @@ export function bestXi(rows) {
    utgafunni i bsd.js og maelir annad.                                   */
 export { normName, nameTokens } from "./names.js";
 import { normName, nameTokens } from "./names.js";
+import { planningGw } from "./availability.js";
 
 /* Skor = fjoldi sameiginlegra orda, +0,5 ef SIDASTA ordid er sameiginlegt
    (eftirnafn a ad vega thyngra en fornafn).                               */
@@ -1980,7 +2001,14 @@ export function sumGwRange(entry, file, from, to) {
   const ix = {}; file.stats.forEach((k, i) => ix[k] = i);
   const scale = file.scale || {};
   const lo = Math.min(from, to), hi = Math.max(from, to);
-  const sum = {};
+  /* SVID SEM BER null I HVERRI UMFERD BILSINS FAER ENGA SUMMU (9.9.2026).
+     `(arr[ix[k]] ?? 0)` gerdi vantandi gildi ad nulli, og eftir 16a i
+     CLAUDE.md (svid sem FPL atti ekki thad timabil eru null i skranni) sat
+     `starts 0`, `xG 0,00` og `dc_per_90 0,00` a HVERJUM leikmanni 2021/22 —
+     tilbunar maelingar a `hi:true` dalkum. Summan er nu tekin yfir thaer
+     umferdir sem BERA gildi (sama regla og panel2.mjs) og svid sem enginn
+     umferd bar er sleppt, svo dalkurinn les „—".                          */
+  const sum = {}, seen = {};
   let apps = 0, rounds = 0;
   for (let r = lo; r <= hi; r++) {
     const arr = entry.gw[r] || entry.gw[String(r)];
@@ -1988,12 +2016,17 @@ export function sumGwRange(entry, file, from, to) {
     rounds++;
     const mins = arr[ix.mins] ?? 0;
     if (mins > 0) apps++;
-    for (const k of file.stats) sum[k] = (sum[k] ?? 0) + (arr[ix[k]] ?? 0) / (scale[k] || 1);
+    for (const k of file.stats) {
+      const v = arr[ix[k]];
+      if (v == null) continue;
+      seen[k] = true;
+      sum[k] = (sum[k] ?? 0) + v / (scale[k] || 1);
+    }
   }
   if (!rounds) return null;
   const out = {};
   for (const [k, fpl] of Object.entries(GW_SUM_TO_FPL))
-    if (sum[k] != null) out[fpl] = +sum[k].toFixed(2);
+    if (seen[k]) out[fpl] = +sum[k].toFixed(2);
   /* Afleiddar tolur sem FPL birtir sjalf a arstid — reiknadar ur summunum
      svo dalkarnir seu ekki tomir ad ósekju.                              */
   const mins = out.minutes ?? 0;
@@ -2710,7 +2743,7 @@ export function makeEnricher({
 
   /* LIDS-SAMTALA: xG lidsins, fyrir "hlutur af xG lidsins". */
   const teamXg = {};
-  for (const p of players || []) {
+  for (const p of rowsOf(players)) {
     const v = num(p.expected_goals);
     if (v != null) teamXg[p.team] = (teamXg[p.team] ?? 0) + v;
   }
@@ -2778,15 +2811,21 @@ export function makeEnricher({
 
   /* LEIKIR FRAMUNDAN — talid per UMFERD, ekki per leik: `fix6 < 6` er auð
      umferd og `> 6` tvofold. Thad er spurningin sem notandinn hefur.     */
+  /* Varaleidin var `finished`-talning + 1 — klukkan sem flettist ~3 dogum
+     of seint (CLAUDE.md kafli 1). `planningGw` les leikina.               */
   const nextGw = (events || []).find(e => e.is_next)?.id
-              ?? ((events || []).filter(e => e.finished).length + 1);
+              ?? planningGw(events, fixtures);
   const fixAgg = {};
   for (const f of fixtures || []) {
     if (f.event == null || f.event < nextGw || f.event > nextGw + 5) continue;
     for (const [team, isHome, diff] of [[f.team_h, true, f.team_h_difficulty],
                                         [f.team_a, false, f.team_a_difficulty]]) {
-      const a = fixAgg[team] || (fixAgg[team] = { n:0, fdr:0, home:0 });
-      a.n++; a.fdr += (num(diff) ?? 3); if (isHome) a.home++;
+      const a = fixAgg[team] || (fixAgg[team] = { n:0, fdr:0, nFdr:0, home:0 });
+      /* Vantandi FDR er SLEPPT ur medaltalinu — `?? 3` bjo til hlutlausa
+         tolu sem las eins og maeling (CLAUDE.md kafli 8). `n` telur afram
+         leikina; `nFdr` er nefnari medaltalsins.                          */
+      const dv = num(diff);
+      a.n++; if (dv != null) { a.fdr += dv; a.nFdr++; } if (isHome) a.home++;
     }
   }
 
@@ -2944,7 +2983,7 @@ export function makeEnricher({
         /* GK-SAMHENGI — SER REITUR, ALDREI INNI I `_start_p` (kafli 6).
            null = ekki markmadur, ER nr. 1, eda rodunin osvaranleg.      */
         _gk_chief_out: p.element_type === 1 ? (gkChief.get(p.id) ?? null) : null,
-        _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
+        _fdr6: fa && fa.nFdr ? +(fa.fdr / fa.nFdr).toFixed(2) : null,
         _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
         _team_cs: teamCsOf(p.team, short),
         _ffdr4: ffdr4Of(p),

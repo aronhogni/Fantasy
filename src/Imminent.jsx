@@ -14,7 +14,7 @@
    ============================================================ */
 
 import { useState, useMemo } from "react";
-import { imminentBoard, nameScore } from "./stats.js";
+import { imminentBoard, nameScore, fmtPrice } from "./stats.js";
 import { photoNext } from "./Crest.jsx";
 
 const C = {
@@ -150,7 +150,7 @@ export default function ImminentPanel({ imminent, teamById, Crest, photoUrl, pla
                   <div style={S.immName}>{p.name}</div>
                   <div style={S.immMeta}>
                     {t ? <Crest team={t} size={11} /> : null} {p.team} · {p.pos}
-                    {cur ? ` · £${((cur.now_cost ?? 0) / 10).toFixed(1)}` : ""}
+                    {cur ? ` · ${fmtPrice(cur.now_cost)}` : ""}
                   </div>
                 </div>
                 <div style={S.immScore} title={isMo ? "IG score" : "IA score"}>

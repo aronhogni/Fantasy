@@ -127,6 +127,13 @@ const fake = { goals_scored: 5, expected_goals: "3.20", assists: 2, expected_ass
                now_cost: 75, clean_sheets: 4, starts: 10, saves: 30, goals_conceded: 10 };
 near(STAT_BY_KEY.goals_minus_xg.get(fake), 1.8, 1e-9, "Mörk − xG = 5 − 3,20");
 near(STAT_BY_KEY.gi_minus_xgi.get(fake), 2.0, 1e-9, "Framlög − xGI = 7 − 5,00");
+/* BAEDI INNTOK VANTANDI -> null, EKKI 0 (9.9.2026). `(g??0)+(a??0)` gaf 0
+   fyrir rod sem ber hvorki mork ne stodsendingar, og G+A−xGI vard tha −xGI:
+   rod med xGI 1,0 og engar tolur las eins og oheppnasti madur deildarinnar. */
+ok(STAT_BY_KEY.gi.get({}) === null, "G+A: baedi vantandi gefur null");
+ok(STAT_BY_KEY.gi.get({ goals_scored: 2 }) === 2, "G+A: annad til, hitt telst 0");
+ok(STAT_BY_KEY.gi_minus_xgi.get({ expected_goal_involvements: 1 }) === null,
+   "G+A − xGI: engin framlog gefur null, ekki −1");
 near(STAT_BY_KEY.pts_per_90.get(fake), 6.0, 1e-9, "Stig/90 = 60/900×90");
 /* pts_per_million kemur nu ur OPINBERU FPL-svidi (`value_season`), ekki
    okkar utreikningi. Profid speglar thad OG sannreynir ad FPL-talan se

@@ -31,7 +31,7 @@
    (data-resilience, player-cards, ffdr-table, smoke, monkey, react-warnings —
    sex sofn i einu). Bædi `Crest` og `PlayerImg` halda `ok`-astandi til ad
    falla i `Kit`/skammstofun thegar myndin brestur.                        */
-import React, { useState } from "react";
+import { useState } from "react";
 import { S } from "./appStyles.js";
 
 

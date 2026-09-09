@@ -53,7 +53,7 @@ import { startedGameweeks, banRisk } from "./availability.js";
    kodann, svo stokkbreyting sem fjarlaegdi namundunina SLAPP I GEGN.   */
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName,
          sumGwRange, gwBlindKeys, makeEnricher, passesThreshold,
-         tableDefs, visibleInGroups } from "./stats.js";
+         tableDefs, visibleInGroups, POS_LABEL as POS, POS_COLOR } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -61,8 +61,6 @@ const C = {
   amber:"#c98a00", amberBg:"#fff6e0", red:"#d92d3c", greenBg:"#e6f9f0",
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
-const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 /* Mynd med stafa-fallback VID VILLU, ekki adeins thegar code vantar —
    premierleague.com skilar 404 fyrir nyflutta menn og an onError birtist
@@ -1231,6 +1229,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      bordum, siu-chip-um og valaranum) en setur adeins nytt gildi ef skekkjan
      er > 3 px, svo thetta getur ekki lykkjad.                            */
   const [fitH, setFitH] = useState(0);
+  const measureRef = useRef(false);
   useEffect(() => {
     const measure = () => {
       const el = scrollRef.current;
@@ -1240,10 +1239,19 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
       setFitH(prev => Math.abs(prev - h) > 3 ? h : prev);
     };
     measure();
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, { passive: true });
-    return () => { window.removeEventListener("resize", measure);
-                   window.removeEventListener("scroll", measure); };
+    /* HLUSTARARNIR ERU FESTIR EINU SINNI. Effectid keyrir vid hverja
+       teikningu (engin deps-fylking, viljandi — hausinn getur breytt haed),
+       en med hlustarana inni i thvi voru their teknir af og settir a aftur
+       vid HVERT scroll-atvik, sem sjalft kallar setScrollTop -> teikning.
+       Maelingin er ohaed thvi hvenaer hun var fest thvi hun les DOM-id.  */
+    if (!measureRef.current) {
+      measureRef.current = true;
+      window.addEventListener("resize", measure);
+      window.addEventListener("scroll", measure, { passive: true });
+      return () => { measureRef.current = false;
+                     window.removeEventListener("resize", measure);
+                     window.removeEventListener("scroll", measure); };
+    }
   });
   const [scrollTop, setScrollTop] = useState(0);
   /* LARETT SKRUN ER LIKA STAT — sja S.frozenShadow. Notandinn sa "texti fer
@@ -2049,15 +2057,18 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                 </div>
                 <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__cost")} tabIndex={0}
                   title={"Current price — always today's price, also for a historical season"}
-                  onClick={() => sortOn("__cost", false)}>{"Price"}{arrow("__cost")}</div>
+                  onClick={() => sortOn("__cost", false)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn("__cost", false); } }}>{"Price"}{arrow("__cost")}</div>
                 {mode === "custom" ? (
                   <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("total_points")} tabIndex={0}
                     title={"Total FPL points in the selected season. Fixed column — everything else you add yourself."}
-                    onClick={() => sortOn("total_points")}>{"Points"}{arrow("total_points")}</div>
+                    onClick={() => sortOn("total_points")}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn("total_points"); } }}>{"Points"}{arrow("total_points")}</div>
                 ) : (
                   <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__own")} tabIndex={0}
                     title={"Share of all FPL squads that own him right now"}
-                    onClick={() => sortOn("__own")}>{"Owned %"}{arrow("__own")}</div>
+                    onClick={() => sortOn("__own")}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn("__own"); } }}>{"Owned %"}{arrow("__own")}</div>
                 )}
                 {visibleCols.map((d, ci) => (
                   <div key={d.key} style={{ ...S.hCell, ...cFor(d),

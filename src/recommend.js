@@ -152,7 +152,11 @@ export function buildRecommendations({
         (fixByTeamGw[p.team]?.[g] || []).forEach(f => fxs.push(f));
       }
       if (!fxs.length) return null;
-      const fdrAvg = fxs.reduce((a, f) => a + f.fdr, 0) / fxs.length;
+      /* Vantandi FDR er sleppt, ekki talid sem 0 (null) eda NaN (undefined)
+         — NaN i `score` gerdi rodunina otota og `sellIds` handahofskennd. */
+      const fdrs = fxs.map(f => f.fdr).filter(v => v != null && Number.isFinite(+v)).map(Number);
+      if (!fdrs.length) return null;
+      const fdrAvg = fdrs.reduce((a, v) => a + v, 0) / fdrs.length;
       const price = (p.now_cost || 0) / 10;
       /* VANTANDI LIKUR ERU EKKI 0%. `?? 0` gerdi stodu-"d" mann MED
          ochekktar likur ad 0 -> `rank x 0` -> hann hvarf ur tillogum

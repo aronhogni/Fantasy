@@ -10,7 +10,7 @@
    vaeri ad endurtaka somu tuttugu raedirnar 28 sinnum hverja, og
    rodun eftir theim vaeri rodun a lidum i dulargervi.
    ============================================================ */
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import ShotMap from "./ShotMap.jsx";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          applyTeamRange, teamRangeUse, teamRangeBlind, maxEventOf,
@@ -94,7 +94,7 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
   const liveForm = useMemo(
     () => buildLiveTeamForm({ fixtures, teams: teams?.teams || teams,
                               season: liveLabel }),
-    [fixtures, teams]);
+    [fixtures, teams, liveLabel]);
   const liveOn = season === "live" && !!liveForm;
 
   const base = useMemo(
@@ -490,14 +490,19 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
     return `${d.label}\n\n${d.note}\n\n${dir}${mark}\n\nSource: ${srcText[d.src] || d.src}${inc}${lockd}${rng}`;
   };
 
+  const sortOn = key => setSort(s => s.key === key
+    ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+    : { key, dir: TEAM_STAT_DEFS.find(d => d.key === key)?.hi === false ? "asc" : "desc" });
+  /* Lyklabord eins og i Player stats: hausinn er fokuseranlegur og
+     Enter/bil radar. Adur var thad mus eingongu i thessari toflu.        */
   const head = (key, label, title, right = true) => (
-    <th key={key} title={title}
+    <th key={key} title={title} tabIndex={0}
+      aria-sort={sort.key === key ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
       style={{ ...S.th, ...(right ? S.thRight : S.thName),
                ...(TEAM_STAT_BY_KEY[key]?.incomplete ? S.thIncomplete : null),
                ...(sort.key === key ? S.thOn : null) }}
-      onClick={() => setSort(s => s.key === key
-        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: TEAM_STAT_DEFS.find(d => d.key === key)?.hi === false ? "asc" : "desc" })}>
+      onClick={() => sortOn(key)}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn(key); } }}>
       {label}{sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
       {/* MERKID — ADEINS thegar bil er valid. "season" a dalki i heilu
           timabili vaeri merkimidi an merkingar; thad sem tharf ad segja er
@@ -721,6 +726,8 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
                     <td style={{ ...S.tdName, ...(shotIndex ? { cursor: "pointer" } : null),
                                  ...(pick === r.short ? { boxShadow: "inset 3px 0 0 #7b2d8e" } : null) }}
                         onClick={shotIndex ? () => setPick(pick === r.short ? null : r.short) : undefined}
+                        role={shotIndex ? "button" : undefined} tabIndex={shotIndex ? 0 : undefined}
+                        onKeyDown={shotIndex ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPick(pick === r.short ? null : r.short); } } : undefined}
                         title={shotIndex ? "Show this team's shot maps" : undefined}>
                       {Crest ? <Crest team={r} size={14} /> : null}
                       <span style={S.short}>{r.short}</span>

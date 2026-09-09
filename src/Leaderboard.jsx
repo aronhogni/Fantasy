@@ -14,7 +14,7 @@
 import { useState, useMemo } from "react";
 import { interp } from "./interp.js";
 import { STAT_DEFS, STAT_GROUPS, buildLeaderboard, fmtStat, minutesFloor,
-         num, makeEnricher } from "./stats.js";
+         num, makeEnricher, POS_COLOR } from "./stats.js";
 
 /* GK/DEF/MID/FWD, EKKI "Defence"/"Midfield"/"Attack".
    HEITA-AREKSTUR SEM VAR MAELDUR 8.8.2026: stodu-fliparnir hetu "Defence" og
@@ -24,7 +24,6 @@ import { STAT_DEFS, STAT_GROUPS, buildLeaderboard, fmtStat, minutesFloor,
    er thad sem leikmannataflan notar thegar, svo thetta samraemir lika.    */
 const POS_TABS = [["all","All"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
 const POS_LABEL = { 1:"GK", 2:"D", 3:"M", 4:"F" };
-const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 export default function Leaderboard({ players, teams, teamById, Crest, onPickPlayer, seasonNote,
                                      imminent, shotsFile, fixtures, events, odds,
@@ -148,7 +147,7 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
         </label>
       </div>}
 
-      {group === "rank" && (
+      {shownGroup === "rank" && (
         <div style={S.note}>
           <b>{"These are FPL ranks WITHIN the position"}</b>{", not among all players — so each position has its own no. 1. That is why four players show \"1\" when no position filter is set (best GK, best DEF, best MID, best FWD)."} <b>{"Lower is better."}</b> {"Example: Raya has 4.4 points/match → rank"} <b>3</b> {"among goalkeepers but 32nd overall."}
         </div>

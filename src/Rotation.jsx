@@ -22,7 +22,8 @@
 
 import { useMemo, useState } from "react";
 import { interp } from "./interp.js";
-import { TIER_BG, TIER_FG, TIER_NAME } from "./model.js";
+import { TIER_BG, TIER_FG, TIER_NAME, TIER_NEUTRAL } from "./model.js";
+import { POS_LABEL as POS } from "./stats.js";
 import {
   DEFAULT_HORIZON, HARD_TIER_MIN, candidatePool, findRotationPartners, gwCell,
   horizonGws, needOf,
@@ -33,7 +34,6 @@ const C = {
   text2:"#61616b", text3:"#8b8b95", purple:"#37003c", green:"#00b96b", red:"#d92d3c",
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
 
 /* Ein leikjafrumsa: litur = algilt FFDR-þrep, texti = andstæðingur.     */
 function Cell({ cell, teamById, hard }) {
@@ -42,7 +42,7 @@ function Cell({ cell, teamById, hard }) {
                  outline: hard ? `2px solid ${C.red}` : "none", outlineOffset:-2 }}
         title={"Blank gameweek — the player does not play and gets 0 points"}>–</td>
   );
-  const t = cell.tier ?? 2;
+  const t = cell.tier ?? TIER_NEUTRAL;
   const label = cell.fxs.map(f => {
     const o = teamById?.[f.opp];
     return `${o?.short || "?"}${f.home ? "" : " (a)"}`;
@@ -135,9 +135,9 @@ export default function Rotation({
               <select style={S.sel} value={capExtra}
                 onChange={e => setCapExtra(e.target.value === "off" ? "off" : Number(e.target.value))}>
                 <option value={0}>{"same price"}</option>
-                <option value={10}>+£1,0</option>
-                <option value={20}>+£2,0</option>
-                <option value={50}>+£5,0</option>
+                <option value={10}>+£1.0</option>
+                <option value={20}>+£2.0</option>
+                <option value={50}>+£5.0</option>
                 <option value="off">{"no cap"}</option>
               </select>
             </label>

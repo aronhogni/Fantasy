@@ -251,5 +251,25 @@ const defs = M.STAT_DEFS.filter(d => d.key && !d.live_only);
 ok(`fleiri dalkar fylgja bilinu en gera ekki (${defs.length - [...blind].filter(k => defs.some(d => d.key === k)).length} a moti ${blind.size})`,
    defs.length - blind.size > blind.size);
 
+/* ---- 7. SVID SEM ER null I HVERRI UMFERD FAER ENGA SUMMU (9.9.2026) ----
+   Eftir 16a i CLAUDE.md bera eldri arstidir `null` i sviðum sem FPL atti
+   ekki (starts, xG, dc …) — og `(v ?? 0)` gerdi summuna 0,00 a hverjum
+   leikmanni, tilbuna maelingu a hi:true dalki. Tilbuid inntak thar sem
+   svarid er thekkt: eitt svid null i ollum umferdum, annad null i EINNI —
+   thad fyrra ma ekki vera til i utkomunni, thad sidara er summa hinna.  */
+console.log("\n=== 7. sumGwRange — null i hverri umferd er EKKI 0 ===");
+{
+  const file = { stats: ["mins", "pts", "xg", "starts"], scale: { xg: 100 } };
+  const entry = { gw: { 1: [90, 6, null, null], 2: [90, 2, 50, null], 3: [0, 0, null, null] } };
+  const r = M.sumGwRange(entry, file, 1, 3);
+  ok("svid sem er null i OLLUM umferdum er ekki i utkomunni (starts)",
+     r && !("starts" in r), JSON.stringify(r?.starts));
+  ok("svid med gildi i einni umferd summar hana eina (xG 0,50)",
+     r && r.expected_goals === 0.5, String(r?.expected_goals));
+  ok("afleidd per-90 tala af vantandi svidi er null, ekki 0",
+     r && r.starts_per_90 == null, String(r?.starts_per_90));
+  ok("stig summast afram (8)", r && r.total_points === 8, String(r?.total_points));
+}
+
 console.log(`\nPER-UMFERDAR SKRAR: ${pass}/${pass + fail} graen`);
 process.exit(fail ? 1 : 0);

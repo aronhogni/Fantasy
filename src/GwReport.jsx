@@ -20,7 +20,7 @@
    ENGIN FORMULA HER — allt kemur ur src/stats.js.
    ============================================================ */
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { interp } from "./interp.js";
 import {
   withDerived, gwTotals, gwTop, bestXi, gwFixtureReports,

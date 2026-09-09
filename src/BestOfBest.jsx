@@ -22,6 +22,7 @@
    ============================================================ */
 
 import { useMemo, useState } from "react";
+import { POS_LABEL as POS, POS_COLOR } from "./stats.js";
 import { eo, movers, differential, coverageOk, marginPct, chipTimeline,
          MIN_PANEL_RESPONSE } from "./pros.js";
 import { CrownIcon } from "./Icons.jsx";
@@ -32,8 +33,6 @@ const C = {
   amber:"#c98a00", amberBg:"#fff6e0", red:"#d92d3c", blue:"#2563eb",
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
-const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 const CHIP_LABEL = { wildcard:"Wildcard", freehit:"Free Hit", bboost:"Bench Boost", "3xc":"Triple Captain" };
 
 const S = {
