@@ -33,32 +33,23 @@
    ============================================================ */
 
 import { useEffect, useMemo, useState } from "react";
+/* Litapallettan er EIN og byr i appStyles.js — stadbundna afritid var
+   hlutmengi hennar med somu gildum (sannreynt 10.9.2026).             */
+import { C } from "./appStyles.js";
 import { num, liveSeasonRow, sumGwRange, gwBlindKeys, indexImminentByTeam, matchImminent,
          startRisk, POS_LABEL as POS, fmtPrice } from "./stats.js";
 import { advise, contextFactors } from "./advisor.js";
 import { useGwSeasonFile, gwSeasonsOf, nextRange, lastNRange, rangeBlind,
          RANGE_BLIND_BADGE, RANGE_LIVE_BADGE } from "./gwRange.js";
-import { photoNext } from "./Crest.jsx";
+import { PlayerPhoto } from "./Crest.jsx";
 
-const C = {
-  card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
-  text2:"#61616b", text3:"#8b8b95", purple:"#37003c", green:"#00b96b",
-  amber:"#c98a00", red:"#d92d3c", amberBg:"#fff6e0",
-};
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 const per90 = (v, m) => (!m || m <= 0 || v == null) ? null : (v / m) * 90;
 
 /* Mynd sem HVERFUR vid 404 i stad brotins-myndar-taks. premierleague.com
    skilar 404 fyrir nyflutta menn; nafnid stendur hvort sem er fyrir nedan. */
-function SafeImg({ src, style }) {
-  const [ok, setOk] = useState(true);
-  if (!ok) return null;
-  /* TVAER FOTUR — sja maelinguna i Crest.jsx. Myndin hverfur fyrst
-     thegar BADAR hafa brugdist.                                        */
-  return <img src={src} alt="" style={style} loading="lazy"
-    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setOk(false); }} />;
-}
+const SafeImg = ({ src, style }) => <PlayerPhoto src={src} style={style} />;
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */

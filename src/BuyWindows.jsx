@@ -35,16 +35,14 @@
       thakid er thvi raunverulegt og "engin thogul thok" gildir.
    ============================================================ */
 import { useMemo, useState } from "react";
+/* Litapallettan er EIN og byr i appStyles.js — stadbundna afritid var
+   hlutmengi hennar med somu gildum (sannreynt 10.9.2026).             */
+import { C } from "./appStyles.js";
 import { POS_LABEL as POS, POS_COLOR, fmtPrice } from "./stats.js";
 import { TIER_BG, TIER_FG, TIER_NAME, MEASURED_POS } from "./model.js";
 import { ffdrSeries, buyWindows, meanDifficulty, relTier,
          MIN_WINDOW, MAX_WINDOWS } from "./buywindow.js";
 
-const C = {
-  card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
-  text2:"#61616b", text3:"#8b8b95", purple:"#37003c", green:"#00b96b",
-  amber:"#c98a00", red:"#d92d3c",
-};
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 /* TVEIR KVARDAR, TVAER SPURNINGAR — sja hausinn a `relTier` i buywindow.js.

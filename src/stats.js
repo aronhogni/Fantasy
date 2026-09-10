@@ -52,7 +52,7 @@ const per90 = (v, mins) => (!mins || mins <= 0 || v == null ? null : (v / mins) 
    inni. Framendinn a tha ad BIRTA MINNA, ekki hrynja med hvitum skjá — sama
    regla og hledslan i App.jsx fylgir ("verja gegn ovaentri logun").
    Maelt med illgjornu inntaki: 27 logunum x hvert utflutt fall.            */
-const rowsOf = v => Array.isArray(v) ? v.filter(x => x != null && typeof x === "object") : [];
+export const rowsOf = v => Array.isArray(v) ? v.filter(x => x != null && typeof x === "object") : [];
 
 const safeDiv = (a, b) => (b == null || b === 0 || a == null ? null : a / b);
 

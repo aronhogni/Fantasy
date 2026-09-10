@@ -14,14 +14,12 @@
    ============================================================ */
 
 import { useState, useMemo } from "react";
+/* Litapallettan er EIN og byr i appStyles.js — stadbundna afritid var
+   hlutmengi hennar med somu gildum (sannreynt 10.9.2026).             */
+import { C } from "./appStyles.js";
 import { imminentBoard, nameScore, fmtPrice } from "./stats.js";
-import { photoNext } from "./Crest.jsx";
+import { PlayerPhoto } from "./Crest.jsx";
 
-const C = {
-  card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
-  text2:"#61616b", text3:"#8b8b95", purple:"#37003c",
-  amber:"#c98a00", amberBg:"#fff6e0",
-};
 
 /* ============================================================
    OHJAKVAEMILEGT — MO og AO med TREND-LINURITI
@@ -36,14 +34,9 @@ const C = {
    premierleague.com skilar 404 fyrir nyja/nyflutta menn (Igor Jesus i
    agust 2026) og an onError birti vafrinn brotid-myndar-tak i stad
    stafsins — sama regla og PlayerImg i App.jsx.                        */
-function ImmPhoto({ img, name }) {
-  const [ok, setOk] = useState(true);
-  if (!img || !ok) return <span style={S.immImgFb}>{(name || "?").slice(0, 1)}</span>;
-  /* TVAER FOTUR — sja maelinguna i Crest.jsx. Stafurinn kemur fyrst ef
-     BADAR bregdast, ekki eftir fyrstu.                                  */
-  return <img src={img} alt="" style={S.immImg} loading="lazy"
-    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setOk(false); }} />;
-}
+const ImmPhoto = ({ img, name }) =>
+  <PlayerPhoto src={img} style={S.immImg}
+    fallback={<span style={S.immImgFb}>{(name || "?").slice(0, 1)}</span>} />;
 
 export default function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPlayer }) {
   const [kind, setKind] = useState("mo");

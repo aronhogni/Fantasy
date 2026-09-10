@@ -18,6 +18,9 @@
    ============================================================ */
 
 import { useState } from "react";
+/* Litapallettan er EIN og byr i appStyles.js — stadbundna afritid var
+   hlutmengi hennar med somu gildum (sannreynt 10.9.2026).             */
+import { C } from "./appStyles.js";
 import { interp } from "./interp.js";
 /* `n` VAR STAFRETT AFRIT AF `num` UR stats.js (lagad 11.8.2026) — mælt a
    17 jadartilfellum (null, "", "3.5abc", [], [5], Infinity, true …):
@@ -25,11 +28,6 @@ import { interp } from "./interp.js";
    haldist obreyttir. `liveSeasonRow` er sameinada timabils-rodin.        */
 import { num as n, liveSeasonRow, STAT_BY_KEY } from "./stats.js";
 
-const C = {
-  card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
-  text2:"#61616b", text3:"#8b8b95", purple:"#37003c", green:"#00b96b",
-  amber:"#c98a00", amberBg:"#fff6e0", red:"#d92d3c", greenBg:"#e6f9f0",
-};
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 const f1 = v => v == null ? "—" : (+v).toFixed(1);

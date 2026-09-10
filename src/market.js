@@ -212,6 +212,11 @@ export function marketGoals({ pHome, pAway, line, pOver, ah = null }) {
     hxg = (lambda - ah) / 2; axg = (lambda + ah) / 2;
     method = "totals+spreads";
   } else {
+    /* VANTI H2H-LINUNA LIKA er skiptingin agiskun: `impliedProb(null)` er 0
+       og `devig2(0,0)` er 0,5, svo markin hefdu skipst 50/50 undir heitinu
+       "totals+h2h" (10.9.2026). Sama regla og `lambdaFromOver`: oskrad
+       leikur er sleppt, ekki fylltur.                                    */
+    if (!(pHome > 0 && pAway > 0)) return { hxg: null, axg: null, lambda: null, method: "unpriced" };
     const sp = splitGoals(lambda, pHome, pAway);
     hxg = sp.home; axg = sp.away; method = "totals+h2h";
   }

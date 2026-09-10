@@ -24,6 +24,26 @@ const POS = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
    tolum og eitt onytt svid kostar adeins sig sjalft.                 */
 const ids = v => (Array.isArray(v) ? v.map(Number).filter(Number.isFinite) : []);
 
+/* FFDR-BRAUTIN FYRIR BADA — „ad appid horfi bædi a leikmann sem eg aetla ad
+   selja og svo sem eg aetla ad kaupa serstaklega med tilliti til FFDR."
+   A EININGARSVIDI, ekki inni i BuySell: komponent sem er skilgreindur inni
+   i odrum er NY tegund i hverri teikningu og hver stafur i leitarreitnum
+   endurmountadi thvi hverja braut — sama gildra sem hausinn lysir fyrir
+   `Col` (10.9.2026).                                                    */
+function Path({ id, label, pathOf, S }) {
+  const path = typeof pathOf === "function" ? pathOf(id) : null;
+  if (!Array.isArray(path) || !path.length) return null;
+  return (
+    <div style={S.bsPathRow}>
+      <span style={S.bsPathLbl}>{label}</span>
+      {path.map((c, i) => (
+        <span key={i} style={{ ...S.bsCell, background: c.bg, color: c.fg }}
+          title={c.title || ""}>{c.opp || "—"}</span>
+      ))}
+    </div>
+  );
+}
+
 export default function BuySell({ players = [], squadIds = [], ep, pathOf,
                                   gw, maxGw = 38, freeTransfers = 1, S = {} }) {
   const [sell, setSell] = useState([]);
@@ -131,19 +151,6 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
   /* FFDR-BRAUTIN FYRIR BADA — thad var beinlinis thad sem var bedid um:
      „ad appid horfi bædi a leikmann sem eg aetla ad selja og svo sem eg
      aetla ad kaupa serstaklega med tilliti til FFDR."                  */
-  const Path = ({ id, label }) => {
-    const path = typeof pathOf === "function" ? pathOf(id) : null;
-    if (!Array.isArray(path) || !path.length) return null;
-    return (
-      <div style={S.bsPathRow}>
-        <span style={S.bsPathLbl}>{label}</span>
-        {path.map((c, i) => (
-          <span key={i} style={{ ...S.bsCell, background: c.bg, color: c.fg }}
-            title={c.title || ""}>{c.opp || "—"}</span>
-        ))}
-      </div>
-    );
-  };
 
   const moves = plan?.moves || [];
   const weak = plan?.weak || [];
@@ -206,8 +213,8 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
                   {m.shifted && m.timing.verdict === "wait"
                     && " (pushed a week: another move already has that free transfer.)"}
                 </div>
-                <Path id={m.outId} label={"out"} />
-                <Path id={m.inId} label={"in"} />
+                <Path id={m.outId} label={"out"} pathOf={pathOf} S={S} />
+                <Path id={m.inId} label={"in"} pathOf={pathOf} S={S} />
               </div>
             );
           })}

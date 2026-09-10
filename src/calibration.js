@@ -110,10 +110,14 @@ function rate(hits, n, minN, label) {
 export function ffdrVsCleanSheets({ snapshots, results, minN = 20 }) {
   const byTier = new Map();
   let matched = 0;
+  /* Visir a leik|lid — `results.find` inni i tvofaldri lykkju var
+     O(snapshots x radir x urslit).                                      */
+  const byKey = new Map();
+  for (const x of results || []) byKey.set(`${x.fixture}|${x.team}`, x);
   for (const snap of snapshots) {
     for (const row of (snap.ffdr || [])) {
       if (row.def_tier == null) continue;
-      const r = results.find(x => x.fixture === row.fixture && x.team === row.team);
+      const r = byKey.get(`${row.fixture}|${row.team}`);
       if (!r || r.conceded == null) continue;
       matched++;
       const t = byTier.get(row.def_tier) || { cs: 0, n: 0 };

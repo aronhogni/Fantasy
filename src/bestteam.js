@@ -67,7 +67,10 @@
    "0 vaent stig" og "engin gogn" eru tvennt (CLAUDE.md kafli 8).
    ============================================================ */
 
-export const POS_ORDER = { GK: 1, DEF: 2, MID: 3, FWD: 4 };
+/* Stodu-toflurnar og `rowsOf` koma ur stats.js (10.9.2026) — thetta voru
+   afrit nr. 2 (POS_ORDER), nr. 8 (POS_BY_TYPE) og nr. 2 (rowsOf).      */
+import { POS_ORDER, POS_LABEL as POS_BY_TYPE, rowsOf } from "./stats.js";
+export { POS_ORDER };
 /* FPL-formasjonin. Somu tolur og `stats.js:bestXi` bar innbyggdar og
    somu tolur og `App.jsx:swapStarterBench` sannreynir vid smellu-skipti. */
 export const XI_MIN = { GK: 1, DEF: 3, MID: 2, FWD: 1 };
@@ -75,11 +78,7 @@ export const XI_MAX = { GK: 1, DEF: 5, MID: 5, FWD: 3 };
 export const XI_SIZE = 11;
 
 const POS_KEYS = ["GK", "DEF", "MID", "FWD"];
-/* `element_type` 1-4 <-> stodu-strengur. Vorpunin er handskrifud i SEX
-   vidmots-skram (`const POS = {1:"GK",...}` i PlayerList, Compare,
-   BuyWindows, BestOfBest, Rotation, SetPieces) og thess vegna tekur
-   thessi vel VID BADUM — kallandi tharf ekki sjounda afritid.          */
-const POS_BY_TYPE = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
+/* `element_type` 1-4 <-> stodu-strengur; velin tekur vid BADUM.        */
 export function posKey(v) {
   if (typeof v === "number") return POS_BY_TYPE[v] ?? null;
   if (typeof v !== "string") return null;
@@ -94,7 +93,6 @@ export function posKey(v) {
    afritadan leikmannalista til.                                        */
 const defaultPosOf = r => posKey(r?.pos ?? r?.element_type);
 
-const rowsOf = v => (Array.isArray(v) ? v.filter(x => x != null && typeof x === "object") : []);
 /* ============================================================
    STRONG `num` — TEKUR EKKI VID TOLU-STRENGJUM, OG ThAD ER ASETT
    (skjalad 25.8.2026)

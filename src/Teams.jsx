@@ -11,6 +11,9 @@
    rodun eftir theim vaeri rodun a lidum i dulargervi.
    ============================================================ */
 import { useMemo, useState, useEffect, useRef } from "react";
+/* Litapallettan er EIN og byr i appStyles.js — stadbundna afritid var
+   hlutmengi hennar med somu gildum (sannreynt 10.9.2026).             */
+import { C } from "./appStyles.js";
 import ShotMap from "./ShotMap.jsx";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          applyTeamRange, teamRangeUse, teamRangeBlind, maxEventOf,
@@ -27,11 +30,6 @@ import { RANGE_BLIND_BADGE, nextRange } from "./gwRange.js";
    sina eigin `C` (sbr. PlayerList.jsx og Leagues.jsx). Afritad viljandi
    fremur en ad bua til nyja sameign i midri lotu thar sem onnur lota er
    ad breyta somu skram.                                                 */
-const C = {
-  card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
-  text2:"#61616b", text3:"#8b8b95", purple:"#37003c", green:"#00b96b",
-  amber:"#c98a00", amberBg:"#fff6e0", red:"#d92d3c", greenBg:"#e6f9f0",
-};
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdTeams,

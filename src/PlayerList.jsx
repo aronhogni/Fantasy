@@ -32,8 +32,8 @@
    ============================================================ */
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { C as APP_C } from "./appStyles.js";
-const BORDER_STRONG = APP_C.borderStrong;
+import { C } from "./appStyles.js";
+const BORDER_STRONG = C.borderStrong;
 import { interp } from "./interp.js";
 /* UMFERDAR-BILS-VELIN ER SAMEIGINLEG (src/gwRange.js, 20.8.2026). Hun var
    HER og Compare fekk sama eiginleika; afrit af hledslunni hefdi thytt tvo
@@ -44,7 +44,7 @@ import { useGwSeasonFile, nextRange, rangeBlind as sharedRangeBlind,
          RANGE_BLIND_BADGE } from "./gwRange.js";
 import ImminentPanel from "./Imminent.jsx";
 import BuyWindows from "./BuyWindows.jsx";
-import { photoNext } from "./Crest.jsx";
+import { PlayerPhoto } from "./Crest.jsx";
 import { startedGameweeks, banRisk } from "./availability.js";
 /* `passesThreshold` for UT ur thessum innflutningi 17.8.2026 med
    throskuldar-siunni og KOM AFTUR 21.8.2026 med smell-a-tolu (sja
@@ -55,19 +55,15 @@ import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName,
          sumGwRange, gwBlindKeys, makeEnricher, passesThreshold,
          tableDefs, visibleInGroups, POS_LABEL as POS, POS_COLOR } from "./stats.js";
 
-const C = {
-  card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
-  text2:"#61616b", text3:"#8b8b95", purple:"#37003c", green:"#00b96b",
-  amber:"#c98a00", amberBg:"#fff6e0", red:"#d92d3c", greenBg:"#e6f9f0",
-};
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 /* Mynd med stafa-fallback VID VILLU, ekki adeins thegar code vantar —
    premierleague.com skilar 404 fyrir nyflutta menn og an onError birtist
    brotid-myndar-tak i rodinni. Sama regla og PlayerImg i App.jsx.       */
-function RowPhoto({ src, name }) {
-  const [ok, setOk] = useState(true);
-  if (!ok) return <span style={S.imgFb}>{(name || "?").slice(0, 1)}</span>;
+const RowPhoto = ({ src, name }) =>
+  <PlayerPhoto src={src} style={S.img}
+    fallback={<span style={S.imgFb}>{(name || "?").slice(0, 1)}</span>} />;
+/* Sagan sem gerir sameiginlega utfaersluna naudsynlega:
   /* KEDJAN VAR EKKI HER — OG ThETTA ER AÐALVERKFAERID (19.8.2026).
      `Crest.jsx`, `Compare.jsx` og `Imminent.jsx` ganga allar `photoNext`
      (tvaer fotur, sja maelinguna i Crest.jsx) en RowPhoto gerdi thad ekki,
@@ -75,9 +71,6 @@ function RowPhoto({ src, name }) {
      Bruno G., Garnacho, Rogers, Lacroix — fengu STAF i stad myndar i
      leikmannalistanum sjalfum. CLAUDE.md:711 fullyrti ad allir fjorir
      notendur gengju hana; thad var satt um thrja.                      */
-  return <img src={src} alt="" style={S.img} loading="lazy"
-    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setOk(false); }} />;
-}
 const POS_TABS = [["all","All"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
 
 /* FASTIR DALKAR — birtir vinstra megin i OLLUM flokkum thvi thu tekur

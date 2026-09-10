@@ -155,6 +155,20 @@ export function Crest({ team, size = 16, style }) {
 /* Sama regla og i `Crest` her ad ofan — sja rokstudninginn thar.
    ThETTA VAR TILFELLID SEM NOTANDINN GAT SED: detail-overlay-ith
    skiptir um leikmann an thess ad skipta um komponent-saeti.        */
+/* EIN MYND-MED-VARALEID FYRIR ALLA (10.9.2026). Compare (SafeImg), Imminent
+   (ImmPhoto) og PlayerList (RowPhoto) baru hver sitt afrit af somu
+   useState+photoNext+onError-kedju — og RowPhoto hafdi ThEGAR rekid fra
+   hinum (missti kedjuna, 19.8.2026). `src`-lyklad endurstilling eins og i
+   PlayerImg svo skipti um leikmann i somu saeti byrji med nyja mynd.  */
+export function PlayerPhoto({ src, style, fallback = null, alt = "" }) {
+  const [st, setSt] = useState({ src, ok: true });
+  if (st.src !== src) setSt({ src, ok: true });
+  const ok = st.src === src ? st.ok : true;
+  if (!src || !ok) return fallback;
+  return <img src={src} alt={alt} style={style} loading="lazy"
+    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setSt({ src, ok: false }); }} />;
+}
+
 export function PlayerImg({ code, short, size = 34 }) {
   const [st, setSt] = useState({ code, ok: true });
   if (st.code !== code) setSt({ code, ok: true });
