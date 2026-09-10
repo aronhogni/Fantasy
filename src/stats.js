@@ -52,6 +52,12 @@ const per90 = (v, mins) => (!mins || mins <= 0 || v == null ? null : (v / mins) 
    inni. Framendinn a tha ad BIRTA MINNA, ekki hrynja med hvitum skjá — sama
    regla og hledslan i App.jsx fylgir ("verja gegn ovaentri logun").
    Maelt med illgjornu inntaki: 27 logunum x hvert utflutt fall.            */
+/* STRONG `num` — tekur EKKI vid tolu-strengjum. Var skilgreint ORDRETT i
+   teamstats.js, advisor.js og bestteam.js, hvert med somu 30-lina
+   rokstudningi (10.9.2026). `num` her ofar er LAUSA utgafan (tekur "3.5")
+   og su tvi-skipting er RETT og skjolud; thrju afrit af strongu var ekki. */
+export const numStrict = v => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
 export const rowsOf = v => Array.isArray(v) ? v.filter(x => x != null && typeof x === "object") : [];
 
 const safeDiv = (a, b) => (b == null || b === 0 || a == null ? null : a / b);
@@ -2238,6 +2244,23 @@ export function indexImminentByTeam(imminent) {
 }
 
 /* p: FPL-leikmadur · idx: ur indexImminentByTeam · teamShort: "ARS" o.s.frv. */
+/* BESTA OTVIRAEDA NAFNA-PORUNIN INNAN LIDS (10.9.2026). Var SAMA lykkjan i
+   `matchImminent` (throskuldur 1) og `findShot` (1,5) — og adeins su
+   sidari hafdi verid hert eftir ad 25 af 169 porunum reyndust rangur
+   madur a fornafni einu. Throskuldurinn er BREYTA thvi tests/name-match.mjs
+   pinnar 1 fyrir imminent-varaleidina; ad haekka hann thar er ser akvordun.
+   Skilar null ef enginn naer throskuldi EDA tveir eru jafnir (tviraett).  */
+export function bestNameMatch(p, cands, minScore) {
+  let best = null, bs = 0, second = 0;
+  for (const c of cands || []) {
+    const sc = Math.max(nameScore(p?.web_name, c.name),
+                        nameScore(`${p?.first_name ?? ""} ${p?.second_name ?? ""}`, c.name));
+    if (sc > bs) { second = bs; bs = sc; best = c; }
+    else if (sc > second) second = sc;
+  }
+  return (best && bs >= minScore && bs > second) ? best : null;
+}
+
 export function matchImminent(p, idx, teamShort) {
   /* CODE FYRST — sja blokkina her ofan. */
   const byCode = idx && idx[IMM_BY_CODE];
@@ -2245,15 +2268,7 @@ export function matchImminent(p, idx, teamShort) {
     const hit = byCode.get(p.code);
     if (hit) return hit;
   }
-  const cands = (idx && idx[teamShort]) || [];
-  let best = null, bs = 0, second = 0;
-  for (const c of cands) {
-    const sc = Math.max(nameScore(p?.web_name, c.name),
-                        nameScore(`${p?.first_name ?? ""} ${p?.second_name ?? ""}`, c.name));
-    if (sc > bs) { second = bs; bs = sc; best = c; }
-    else if (sc > second) second = sc;
-  }
-  return (best && bs >= 1 && bs > second) ? best : null;
+  return bestNameMatch(p, (idx && idx[teamShort]) || [], 1);
 }
 
 /* ============================================================
@@ -2790,13 +2805,6 @@ export function makeEnricher({
   for (const sp of shotRows) (shotByTeam[sp.team] ||= []).push(sp);
   const findShot = (p) => {
     const cands = shotByTeam[teamById?.[p.team]?.short] || [];
-    let best = null, bs = 0, second = 0;
-    for (const c of cands) {
-      const sc = Math.max(nameScore(p.web_name, c.name),
-                          nameScore(`${p.first_name} ${p.second_name}`, c.name));
-      if (sc > bs) { second = bs; bs = sc; best = c; }
-      else if (sc > second) second = sc;
-    }
     /* ThROSKULDURINN ER 1,5 — SAMEIGINLEGT FORNAFN EITT ER EKKI PORUN.
        `nameScore` gefur 2,5 fyrir fulla jofnu, 1,5 fyrir gaelunafn og
        **1,0 fyrir fornafn eitt og ser**. Med gamla golfinu (`>= 1`)
@@ -2806,7 +2814,7 @@ export function makeEnricher({
        Skyldufallid `matchShotsToPlayers` (nedar i thessari skra) var hert
        gegn thessu a sinum tima; thetta afrit var thad aldrei.
        Gaelunafna-threpid (1,5) lifir, svo Savinho/Richarlison halda ser. */
-    return (best && bs >= 1.5 && bs > second) ? best : null;
+    return bestNameMatch(p, cands, 1.5);
   };
 
   /* LEIKIR FRAMUNDAN — talid per UMFERD, ekki per leik: `fix6 < 6` er auð

@@ -24,6 +24,7 @@
    ============================================================ */
 import { writeFile, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { rowsToObjects } from "./csv.mjs";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const RAW = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data";
@@ -34,25 +35,8 @@ const SEASONS = {
 };
 
 /* CSV með gæsalöppuðum svæðum (stats-kolónan inniheldur kommur) */
-function parseCsvQuoted(text) {
-  const rows = [];
-  let row = [], cell = "", q = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (q) {
-      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
-      else if (c === '"') q = false;
-      else cell += c;
-    } else if (c === '"') q = true;
-    else if (c === ",") { row.push(cell); cell = ""; }
-    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
-    else if (c !== "\r") cell += c;
-  }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
-  const header = rows[0];
-  return rows.slice(1).filter(r => r.length > 1)
-    .map(r => Object.fromEntries(header.map((h, i) => [h, r[i]])));
-}
+/* Thattunin byr i scripts/csv.mjs (10.9.2026) — thetta var afrit nr. 5.  */
+const parseCsvQuoted = text => rowsToObjects(text, { minFields: 2 });
 
 const dayOf = iso => iso.slice(0, 10);
 const shift = (iso, d) => {

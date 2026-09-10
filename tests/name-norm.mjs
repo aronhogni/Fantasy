@@ -433,10 +433,18 @@ console.log("\n`num`: TVAER HEGDANIR, BADAR RETTAR");
   ok(!!loose && /parseFloat/.test(loose[0]),
      "stats.js:num er AFRAM laus (parseFloat) — FPL sendir tolur sem strengi");
 
+  /* EIN UTFAERSLA AF STRONGU (10.9.2026): `numStrict` i stats.js, flutt inn sem
+     `num` i hinum thremur. Vordurinn spyr afram um HEGDUNINA — ad thad sem
+     heitir `num` i theim skram se strong — en les hana nu a einum stad. */
+  const strict = src("stats.js").match(/export const numStrict = v => \([\s\S]{0,120}?\);/);
+  ok(!!strict && /typeof v === "number"/.test(strict[0]) && !/parseFloat/.test(strict[0]),
+     "stats.js:numStrict er strong (typeof number, ekkert parseFloat)");
   for (const f of ["teamstats.js", "bestteam.js", "advisor.js"]) {
-    const m = src(f).match(/const num = v => \([\s\S]{0,120}?\);/);
-    ok(!!m, `${f} skilgreinir num`);
-    ok(!!m && /typeof v === "number"/.test(m[0]) && !/parseFloat/.test(m[0]),
+    const s = src(f);
+    const imported = /import \{[^}]*\bnumStrict as num\b[^}]*\} from "\.\/stats\.js"/.test(s);
+    const local = s.match(/const num = v => \([\s\S]{0,120}?\);/);
+    ok(imported || !!local, `${f} a num (flutt inn sem numStrict eda skilgreint)`);
+    ok(imported ? !/const num = /.test(s) : (!!local && /typeof v === "number"/.test(local[0]) && !/parseFloat/.test(local[0])),
        `${f}:num er AFRAM strong — dagsetningar mega ekki verda ad 2026`);
   }
 

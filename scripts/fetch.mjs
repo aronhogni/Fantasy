@@ -23,6 +23,7 @@ import { isInvokedDirectly } from "./invoked.mjs";
 import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../src/market.js";
 import { collectPros } from "./pros-collect.mjs";
 import { IN_BOX, shotZone } from "./espn-zones.mjs";
+import { rowsToObjects } from "./csv.mjs";
 import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
          finalize, pairPlayers, matchShotTotals, BSD_TEAM } from "../src/bsd.js";
 /* EIN UTFAERSLA A BYRJUNAR-EIGINLEIKUNUM. Pipeline hafdi EIGIN afrit af
@@ -605,7 +606,7 @@ const COORDS = {
   TOT:[51.6043,-0.0665], WHU:[51.5387,-0.0166], WOL:[52.5903,-2.1303],
 };
 /* ---- Nafnavörpun eftir kerfi, lyklað á FPL short_name ---- */
-const NAMES = {
+export const NAMES = {
   ARS:{clubelo:"Arsenal",fdcouk:"Arsenal"},
   AVL:{clubelo:"AstonVilla",fdcouk:"Aston Villa"},
   BOU:{clubelo:"Bournemouth",fdcouk:"Bournemouth"},
@@ -6204,25 +6205,12 @@ const seasonLabel = d => `${d.slice(0, 4)}/${d.slice(5)}`;
 
 /* CSV med gaesalappa-studningi. parseCSV (naiv) dugar fyrir E0 en players_raw
    hefur `news` sem inniheldur kommur inni i gaesalöppum. */
-function parseCSVQuoted(text) {
-  const rows = [];
-  let row = [], cell = "", inQ = false;
-  const t = text.replace(/\r\n/g, "\n");
-  for (let i = 0; i < t.length; i++) {
-    const c = t[i];
-    if (inQ) {
-      if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else inQ = false; }
-      else cell += c;
-    } else if (c === '"') inQ = true;
-    else if (c === ",") { row.push(cell); cell = ""; }
-    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
-    else cell += c;
-  }
-  if (cell.length || row.length) { row.push(cell); rows.push(row); }
-  const header = rows.shift() || [];
-  return rows.filter(r => r.length > 1)
-    .map(r => Object.fromEntries(header.map((h, i) => [h, r[i]])));
-}
+/* GAESALAPPA-MEDVITADA ThATTUNIN BYR I scripts/csv.mjs (10.9.2026) — thetta var
+   fjorda afritid af henni (csv.mjs var buin til 25.8. ur thremur og thetta
+   var skilid eftir). `minFields: 2` er sama sia sem her var (`r.length > 1`).
+   Munurinn a CRLF-medhondlun (`\r\n` -> `\n` her, hvert `\r` sleppt thar) er
+   enginn a raunskram. Nafnid helst svo fimm kallstadir seu obreyttir.  */
+const parseCSVQuoted = text => rowsToObjects(text, { minFields: 2 });
 
 /* Tolur sem fa SAETI. `rev:true` = LAEGRA er betra (xGC). */
 const SEASON_STATS = [

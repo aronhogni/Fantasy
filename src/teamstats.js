@@ -95,7 +95,7 @@ import { fixturePlayed } from "./availability.js";
    VID TVEIMUR OLIKUM INNTOKUM. Ekki sameina thaer an thess ad maela
    inntokin fyrst — og se thad gert VERDUR ein theirra rong.
    ============================================================ */
-const num = v => (typeof v === "number" && Number.isFinite(v) ? v : null);
+import { numStrict as num } from "./stats.js";   // ein utfaersla, sja stats.js
 const div = (a, b) => (num(a) != null && num(b) ? +(a / b).toFixed(3) : null);
 
 /* MISMUNA-DALKARNIR ERU REIKNADIR A EINUM STAD — arstidar-leidin og

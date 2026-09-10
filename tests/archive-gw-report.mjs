@@ -66,12 +66,19 @@ function grab(name, kind = "async function") {
 const fnArchive = grab("buildArchiveGwReport");
 const fnNorm    = grab("normPlayerRow", "function");
 const fnCSV     = grab("parseCSV", "function");
-const fnCSVQ    = grab("parseCSVQuoted", "function");
+/* parseCSVQuoted ER EKKI LENGUR FALL I fetch.mjs (10.9.2026) heldur alias a
+   rowsToObjects i scripts/csv.mjs — fimmta afritid af thattuninni for. Profid
+   flytur thvi SOMU einingu inn i data:-moduluna i stad thess ad draga texta
+   ut: thad keyrir nakvaemlega thad sem pipeline-an keyrir.                */
+const fnCSVQ    = `import { rowsToObjects } from "${new URL("../scripts/csv.mjs", import.meta.url).href}";
+const parseCSVQuoted = text => rowsToObjects(text, { minFields: 2 });`;
 
 H("0. KODINN FINNST OG ER DREGINN UT");
 ok(!!fnArchive, "buildArchiveGwReport finnst i scripts/fetch.mjs");
 ok(!!fnNorm,    "normPlayerRow finnst");
-ok(!!fnCSV && !!fnCSVQ, "badir parserarnir finnast");
+ok(!!fnCSV, "naivi parserinn (parseCSV) finnst");
+ok(/const parseCSVQuoted = text => rowsToObjects\(text, \{ minFields: 2 \}\)/.test(src),
+   "parseCSVQuoted i fetch.mjs er alias a csv.mjs:rowsToObjects (sama sia, minFields 2)");
 /* SANNANLEG FORSENDA fyrir neikvædu fullyrdinguna i kafla 3. */
 ok(/parseCSVQuoted\(text\)/.test(fnArchive),
    "skyrslan notar parseCSVQuoted (forsenda naestu fullyrdingar)");

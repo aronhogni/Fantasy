@@ -121,7 +121,7 @@ const defaultPosOf = r => posKey(r?.pos ?? r?.element_type);
    VID TVEIMUR OLIKUM INNTOKUM. Ekki sameina thaer an thess ad maela
    inntokin fyrst — og se thad gert VERDUR ein theirra rong.
    ============================================================ */
-const num = v => (typeof v === "number" && Number.isFinite(v) ? v : null);
+import { numStrict as num } from "./stats.js";   // ein utfaersla, sja stats.js
 
 /* Leyfileg uppstilling? Sama profid og appid gerir vid handvirkt skipti.
    Utflutt svo thad se EIN utfaersla af reglunni og ekki thrjar.         */
