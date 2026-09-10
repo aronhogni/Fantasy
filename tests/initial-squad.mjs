@@ -2187,7 +2187,13 @@ console.log("\n--- P. Disconnect — tengingin fer, lidid og plonunin standa ---
   const btnA = a.q("button").map(b => (b.textContent || "").trim());
   ok(btnA.includes("Connect"), "OTENGT: 'Connect' er their");
   ok(!btnA.includes("Disconnect"), "OTENGT: 'Disconnect' er EKKI their");
-  ok(!btnA.includes("Refresh"), "OTENGT: 'Refresh' er farinn");
+  /* „Refresh" var fjarlaegdur 21.8.2026 og er hvergi i JSX — adeins i
+     sex athugasemdum. Fullyrdingin gat thvi ekki brugdist og taldist
+     samt sem thekja. Hun er nu MERKT sem brotthvarfs-vordur og ber
+     JAKVAETT AKKERI i somu mynd (CLAUDE.md 5b regla 2): neitun an
+     akkeris er einskis virdi.                                        */
+  ok(btnA.includes("Connect"), "AKKERI: 'Connect' er a skjanum otengdur");
+  ok(!btnA.includes("Refresh"), "OTENGT: 'Refresh' er farinn (brotthvarf 21.8.2026)");
   await a.down();
 
   /* P2. TENGT -> reiturinn OG Refresh eru farin, Disconnect kominn. */
@@ -2199,7 +2205,8 @@ console.log("\n--- P. Disconnect — tengingin fer, lidid og plonunin standa ---
   ok(b.q("input.url-input").length === 0,
      "TENGT: url-reiturinn er FARINN");
   const btnB = b.q("button").map(x => (x.textContent || "").trim());
-  ok(!btnB.includes("Refresh"), "TENGT: 'Refresh' er FARINN");
+  ok(btnB.includes("Disconnect"), "AKKERI: 'Disconnect' er a skjanum tengdur");
+  ok(!btnB.includes("Refresh"), "TENGT: 'Refresh' er FARINN (brotthvarf 21.8.2026)");
   ok(!btnB.includes("Connect"), "TENGT: 'Connect' er FARINN");
   ok(btnB.includes("Disconnect"), "TENGT: 'Disconnect' er their");
 

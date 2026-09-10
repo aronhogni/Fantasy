@@ -137,7 +137,21 @@ console.log("\n=== 2. LIÐIÐ Á VELLINUM ===");
 const cards = [...container.querySelectorAll('[draggable="true"]')];
 ok(cards.length === 15, `15 leikmannaspjöld (fann ${cards.length})`);
 ok(text().includes("Haaland"), "Haaland á vellinum");
-ok(!text().includes("af undefined"), "engin 'af undefined' villa (rotationRisk)");
+/* „af undefined" ER ISLENSKA og vidmotid hefur verid enskt eingongu fra
+   7.8.2026 — strengurinn er hvergi i `src/` nema i EINNI athugasemd
+   (`App.jsx:797`). Fullyrdingin gat thvi ekki brugdist. Rett regla er su
+   sem CLAUDE.md 5b setur: leitin er `\bundefined\b` (ekki bert
+   `undefined`, sem limist saman ur nagrannaordum — sbr. `MUNaNEW` ->
+   `NaN`).
+   OG MERKIMIDINN „(rotationRisk)" VAR LIKA RANGUR: sa strengur
+   (`Started {0} of {1} matches`) byr i LEIKMANNASPJALDINU, sem er ekki
+   opid i thessari mynd — svo fullyrdingin nefndi rod sem gat ekki verid
+   thar. Reglan „neitun tharf akkeri" a vid um leit ad AKVEDNUM streng;
+   thetta er hins vegar ALMENN leit ad `undefined` hvar sem er a
+   skjanum, og hun hefur tennur an akkeris — hun fellur um leid og
+   eitthvad, hvad sem er, teiknar `undefined`. Nafnid segir thad nuna i
+   stad thess ad lofa rod sem er annars stadar.                       */
+ok(!/\bundefined\b/.test(text()), "hvergi bert 'undefined' a skjanum");
 ok(!/NaN/.test(text()), "engin NaN í viðmótinu");
 
 console.log("\n=== 2b. PENINGATÖLURNAR Á MÆLABORÐINU ===");

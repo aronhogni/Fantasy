@@ -33,7 +33,8 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { planSwaps, BS_HORIZON } from "../src/buysell.js";
+import { planSwaps, BS_HORIZON, FT_CAP } from "../src/buysell.js";
+import { pointsBasisFor, expPointsFor } from "../src/model.js";
 import { SWAP_WEAK_NET } from "../src/swaptiming.js";
 
 const REPO = new URL("../", import.meta.url);
@@ -46,6 +47,10 @@ const ok = (name, cond, extra = "") => {
   else { fail++; console.log(`  ✗ ${name}${extra ? "   " + extra : ""}`); }
 };
 const hdr = t => console.log(`\n${"─".repeat(72)}\n${t}\n${"─".repeat(72)}`);
+
+/* Raunverulegu leikmennirnir — lesnir EINU SINNI, efst, thvi bædi
+   kafli A (raunverulegt `ep`) og kafli B (skjarinn) thurfa tha.       */
+const PL = J("players.json").players;
 
 /* Flat vaent stig per leikmann — einfaldasta formid thar sem svarid er
    reiknanlegt i hausnum. `ep` er fall, eins og appid sendir.          */
@@ -107,8 +112,17 @@ hdr("A) PORUN, RODUN OG ThOGN — TILBUIN GOGN");
   });
   ok("skipti undir throskuldi lendir i \"weak\", ekki i vikurod",
      r.moves.length === 0 && r.weak.length === 1, `moves ${r.moves.length}`);
-  ok(`...og throskuldurinn er sa sem er skjaladur (${SWAP_WEAK_NET})`,
-     r.weak[0].net <= SWAP_WEAK_NET, `net ${r.weak[0]?.net}`);
+  /* EKKI `net <= SWAP_WEAK_NET` — thad endurtekur nakvaemlega skilyrdid
+     sem SETTI parid i `weak` (`swaptiming.js`), svo thad getur ekki
+     brugdist. Fullyrdingin er ad ThROSKULDURINN LIGGI ThAR SEM HANN
+     SEGIST liggja: rett fyrir ofan hann verdur til tillaga.           */
+  const justOver = planSwaps({
+    sells: [{ id: 1, pos: 1 }], buys: [{ id: 2, pos: 1 }],
+    ep: flat({ 1: 4, 2: 4 + (SWAP_WEAK_NET / BS_HORIZON) + 0.05 }), gw: 3, maxGw: 38,
+  });
+  ok(`throskuldurinn liggur vid ${SWAP_WEAK_NET}: rett fyrir ofan verdur til tillaga`,
+     justOver.moves.length === 1 && justOver.weak.length === 0,
+     `net ${justOver.moves[0]?.net ?? justOver.weak[0]?.net}`);
 }
 
 {
@@ -124,6 +138,32 @@ hdr("A) PORUN, RODUN OG ThOGN — TILBUIN GOGN");
      r.moves.length === 0 && r.weak.length === 0);
   ok("...og thad er TALID (`unknown`), ekki thagad i hel", r.unknown === 1,
      `unknown ${r.unknown}`);
+
+  /* ============================================================
+     OG ThESSI FULLYRDING VAR UM MITT EIGID `ep`, EKKI UM APPSINS
+     ============================================================
+     Kaflinn hér ad ofan gefur sjalfum ser `ep` sem SKILAR `null` og
+     sannar sidan ad `null` se medhondlad rett. Thad er eiginleiki
+     STUBBSINS. Appid sendi `expPoints`, sem skilar **0** thegar
+     leikmadur a engan grunn (`!base` i `expPointsFor`) — ekki `null` —
+     svo hlidid opnadist aldrei i raunkeyrslu og listinn bjo til
+     „+21,5 stig" ur manni an gagna. **Profid maeldi annan heim en
+     keyrslan** (sama aett og `buildTeamMetrics`-afritid).
+     Fullyrdingin er nu um RAUNVERULEGA fallid: `pointsBasisFor` verdur
+     ad greina thessa menn og their verda ad vera til i gognunum.      */
+  const noBase = PL.filter(x => pointsBasisFor({ x: 0, p: x, basis: {} }) == null);
+  ok(`raunverulegir leikmenn AN grunns eru til (${noBase.length} af ${PL.length})`,
+     noBase.length > 0);
+  ok("...og margir theirra eru OMERKTIR, svo their lita ut eins og allir adrir",
+     noBase.filter(x => x.status === "a").length > 0,
+     `omerktir ${noBase.filter(x => x.status === "a").length}`);
+  ok("`expPointsFor` skilar 0 fyrir thessa menn (thess vegna dugdi stubburinn ekki)",
+     (() => {
+       const p = noBase[0];
+       const v = expPointsFor({ p, fxs: [{ opp: 1, home: true, fdr: 3 }],
+                                fixDifficulty: () => 3, teamId: p.team, basis: {} });
+       return v === 0;
+     })());
 }
 
 {
@@ -141,6 +181,83 @@ hdr("A) PORUN, RODUN OG ThOGN — TILBUIN GOGN");
      r.moves[1].shifted === true && r.moves[0].shifted === false);
   ok("...og vikurnar eru adskildar (eitt friskipti a viku)",
      r.moves[0].week !== r.moves[1].week);
+}
+
+{
+  /* 6b. BANKINN ER TALINN — „EITT A VIKU" VAR RANGT -----------------
+     Fyrsta utgafa radarans leyfdi nakvaemlega eitt skipti i viku og
+     hunsadi `freeTransfers`. Med tveimur bonkudum friskiptum sagdi hun
+     thvi „bidðu viku eftir friskipti" um friskipti sem notandinn ATTI
+     ThEGAR — rong radgjof sem kostar viku. FPL geymir upp i fimm.     */
+  const three = ft => planSwaps({
+    sells: [{ id: 1, pos: 3 }, { id: 3, pos: 3 }, { id: 5, pos: 2 }],
+    buys: [{ id: 2, pos: 3 }, { id: 4, pos: 3 }, { id: 6, pos: 2 }],
+    ep: flat({ 1: 2, 2: 7, 3: 2, 4: 6, 5: 2, 6: 5.5 }),
+    gw: 5, maxGw: 38, freeTransfers: ft,
+  });
+  const wk = r => r.moves.map(m => m.week);
+  ok("eitt friskipti -> ein vika hvert (5, 6, 7)",
+     JSON.stringify(wk(three(1))) === JSON.stringify([5, 6, 7]),
+     JSON.stringify(wk(three(1))));
+  ok("TVO friskipti -> tvo i SOMU viku, ekki bid eftir thvi sem er til",
+     JSON.stringify(wk(three(2))) === JSON.stringify([5, 5, 6]),
+     JSON.stringify(wk(three(2))));
+  ok("thrju friskipti -> oll thrju strax",
+     JSON.stringify(wk(three(3))) === JSON.stringify([5, 5, 5]),
+     JSON.stringify(wk(three(3))));
+  ok("...og thau sem komast ad eru EKKI merkt sem faerd",
+     three(3).moves.every(m => m.shifted === false));
+  ok("engin friskipti -> ekkert i thessari viku, bankinn safnast (6, 7, 8)",
+     JSON.stringify(wk(three(0))) === JSON.stringify([6, 7, 8]),
+     JSON.stringify(wk(three(0))));
+
+  /* ThAKID ER FPL-REGLA (5), EKKI OKKAR TALA. Sjo skipti med niu
+     „friskiptum" verda ad lenda 5 + 1 + 1, thvi bankinn er thakadur.  */
+  const many = (() => {
+    const sells = [], buys = [], T = {};
+    for (let i = 0; i < 7; i++) {
+      sells.push({ id: 100 + i, pos: 3 }); buys.push({ id: 200 + i, pos: 3 });
+      T[100 + i] = 2; T[200 + i] = 8 - i * 0.1;
+    }
+    return planSwaps({ sells, buys, ep: id => T[id], gw: 10, maxGw: 38,
+                       freeTransfers: 9 });
+  })();
+  const perWeek = {};
+  for (const m of many.moves) perWeek[m.week] = (perWeek[m.week] || 0) + 1;
+  ok(`thakid ${FT_CAP} bindur: 7 skipti verda 5 + 1 + 1 (${JSON.stringify(perWeek)})`,
+     perWeek[10] === FT_CAP && perWeek[11] === 1 && perWeek[12] === 1);
+  ok("...og ekkert skipti tyndist i rodun",
+     many.moves.length === 7 && many.moves.every(m => m.week != null));
+
+  /* ============================================================
+     ThAKID VERDUR AD BINDA A SOFNUNINNI LIKA — EKKI ADEINS A
+     UPPHAFSBANKANUM (fannst med stokkbreytingu 9.9.2026)
+     ============================================================
+     Fyrsta profid a thakinu byrjadi med `freeTransfers: 9`, sem er
+     klippt i 5 STRAX i upphafsgildinu — svo thakid a SOFNUNINNI var
+     aldrei reynt og stokkbreytingin `bank + 1` (an `Math.min`) SLAPP
+     I GEGN (0 fallnar). Tilfellid er raunverulegt: skipti sem oll vilja
+     seinni viku lata bankann standa OSNERTAN og safnast, og an thaks
+     leyfdi hann SEX i einni viku — sem FPL gerir ekki.
+     Sama laerdomur og annars stadar i safninu: fullyrding sem tharf
+     tvennt til ad bregdast (her: hatt upphafsgildi OG sofnun) er
+     veikari en hun litur ut fyrir ad vera.                           */
+  const idle = (() => {
+    const sells = [], buys = [], T = {};
+    for (let i = 0; i < 7; i++) {
+      sells.push({ id: 100 + i, pos: 3 }); buys.push({ id: 200 + i, pos: 3 });
+      T[100 + i] = [9, 9, 9, 1, 1, 1];                      // godur nuna
+      T[200 + i] = [1, 1, 1, 12 - i * 0.1, 12 - i * 0.1, 12 - i * 0.1];
+    }
+    return planSwaps({ sells, buys, ep: (id, g) => T[id][g - 5],
+                       gw: 5, maxGw: 38, freeTransfers: 3 });
+  })();
+  const idleWeeks = {};
+  for (const m of idle.moves) idleWeeks[m.week] = (idleWeeks[m.week] || 0) + 1;
+  ok("forsenda: oll sjo vilja SEINNI viku, svo bankinn stendur osnertur",
+     idle.moves.length === 7 && idle.moves[0].timing.k === 3);
+  ok(`bankinn safnast 3 -> 4 -> 5 og STOPPAR thar (${JSON.stringify(idleWeeks)})`,
+     idleWeeks[8] === FT_CAP && idleWeeks[9] === 1 && idleWeeks[10] === 1);
 }
 
 {
@@ -216,7 +333,6 @@ globalThis.fetch = async url => {
    spilad, svo skiptin seu orugglega yfir throskuldi og tillagan birtist.
    VALID ER LEITT UR GOGNUNUM, ekki skrifad: hardkodud id urelidast vid
    naesta tímabil (sama regla og felldi linutolurnar ur CLAUDE.md).    */
-const PL = J("players.json").players;
 const mids = PL.filter(p => p.element_type === 3 && (p.minutes || 0) > 0)
   .sort((a, b) => (b.ep_next || 0) - (a.ep_next || 0));
 const good = mids[0], poor = mids[mids.length - 1];
@@ -229,6 +345,16 @@ const { default: App } = await import(new URL("src/App.jsx", REPO).href);
 const root = createRoot(document.getElementById("root"));
 await act(async () => { root.render(React.createElement(App)); });
 await act(async () => { await new Promise(r => setTimeout(r, 500)); });
+
+/* Umferdin sem er verid ad skipuleggja — LEIDD ur leikjaskranni, ekki
+   skrifud (fost tala ureldist thegjandi).                             */
+const gwNow = (() => {
+  const fx = J("fixtures.json");
+  const list = Array.isArray(fx) ? fx : fx.fixtures;
+  const open = list.filter(f => !f.finished && !f.finished_provisional)
+    .map(f => f.event).filter(Number.isFinite);
+  return open.length ? Math.min(...open) : 1;
+})();
 
 const card = [...document.querySelectorAll("section")]
   .find(s => /Buy \/ sell — when to make the move/.test(s.textContent || ""));
@@ -252,7 +378,18 @@ ok("spjaldid kvedur upp ur: annadhvort vika eda \"engin breyting\"",
    hasMove || hasWeak, txt().slice(0, 160));
 
 if (hasMove) {
-  ok("tillagan ber viku-merki (GWn)", /GW\d+/.test(txt()));
+  /* HER STOD `ok("tillagan ber viku-merki", /GW\d+/.test(txt()))` INNI i
+     `if (hasMove)`, thar sem `hasMove` ER nakvaemlega sama prof og
+     ekkert breyttist a milli — hun gat ekki brugdist. Rett spurning er
+     hvort vikan a merkinu se RAUNHAEF: innan timabilsins og ekki fyrir
+     thessa umferd.                                                    */
+  const weeks = [...card.querySelectorAll("span")]
+    .map(x => (x.textContent || "").trim())
+    .filter(x => /^GW\d+$/.test(x)).map(x => Number(x.slice(2)));
+  ok(`viku-merkin eru raunhaef umferdanumer (${weeks.join(", ")})`,
+     weeks.length > 0 && weeks.every(w => w >= 1 && w <= 38));
+  ok("...og engin tillaga er sett a umferd sem er ThEGAR lidin",
+     weeks.every(w => w >= gwNow), `nuverandi umferd ${gwNow}`);
   ok("...og hun segir HVERS VEGNA (nuna eda bida)",
      /Do it now|Wait \d+ gameweek/.test(txt()), txt().slice(0, 200));
   /* FFDR-BRAUTIRNAR BADAR — thad var beinlinis bedid um.            */

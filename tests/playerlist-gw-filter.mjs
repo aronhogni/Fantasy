@@ -281,8 +281,28 @@ ok("...og bendir a flokk sem VIRKAR", warned && /Basics/.test(text()));
      falli ekki a profinu ef hun verdur einhvern tima maeld nothaef.      */
   const badged = [...document.querySelectorAll("[aria-sort]")]
     .filter(h => /season/.test(h.textContent)).length;
-  ok(`hver framsynn dalkur er annadhvort merktur (${badged}) eda undir bordanum`,
-     badged === fx.length || /(?:not|follows) GW\s*30[–-]38/i.test(t));
+  /* ============================================================
+     VALKOSTURINN VAR RETTUR, ORDALAGID GAT EKKI BRUGDIST (9.9.2026)
+     ============================================================
+     Her stod `badged === fx.length || /not GW 30-38/.test(t)`. Sidari
+     lidurinn er NAKVAEMLEGA sama regex a sama `t` og var sannadur sattur
+     threttan linum ofar (`t` er ekki endurreiknad a milli), svo
+     fullyrdingin gat ekki brugdist og fyrri lidurinn — sa sem nafnid
+     lofar — var aldrei reyndur.
+     **EN VALKOSTURINN SJALFUR ER RETTUR** og athugasemdin ad ofan segir
+     hvers vegna: annadhvort ber hausinn merki EDA bordinn tekur hann.
+     Ad krefjast merkja (sem eg gerdi fyrst) FELLDI profid a rettri
+     hegdun — bordinn er leidin sem er notud i dag, 0 af 5 bera merki.
+     Reglan sem hefur tennur an thess ad negla adferdina er ad ENGINN
+     dalkur megi vera ThOGULL MEDAN adrir eru merktir: hlut-astandid er
+     hid haettulega, thvi tha les omerkti dalkurinn eins og hann fylgi
+     bilinu. Fellur vid hverja stokkbreytingu sem merkir sum en ekki oll.
+     Bordinn sjalfur er ThEGAR fullyrtur ad ofan, svo thekjan tapast ekki.
+     ============================================================ */
+  ok(`framsynu dalkarnir eru ALLIR merktir eda ENGINN (${badged} af ${fx.length})`
+     + " — hlut-astand gerir omerkta dalkinn thogulan",
+     badged === 0 || badged === fx.length,
+     `merktir ${badged}, framsynir ${fx.length}`);
 
   /* SET PIECES: FLOKKURINN ER ALLUR `build_only` FRA 25.8.2026, svo hann
      hefur ENGAN hnapp i flokka-rodinni. Kaflinn stod adur her og smellti

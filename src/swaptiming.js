@@ -68,7 +68,9 @@ export const SWAP_TAU = 0.25;
    65,9% yfir +5. */
 export const SWAP_WEAK_NET = 3;
 
-const sum = (a, from = 0, to = a.length) => {
+/* UTFLUTT svo `buysell.js` reikni EKKI sina eigin summu — tvaer
+   utfaerslur af sömu formulu eru tvaer formulur (CLAUDE.md kafli 7). */
+export const sum = (a, from = 0, to = a.length) => {
   let s = 0;
   for (let i = from; i < to && i < a.length; i++) s += Number(a[i]) || 0;
   return s;
@@ -88,7 +90,12 @@ export function swapTiming({ epOut, epIn, freeTransfers = 1,
   const H = Math.min(out.length, inn.length);
   if (H < 2) return null;
 
-  const net = sum(inn, 0, H) - sum(out, 0, H);
+  /* NAMUNDAD I SEX AUKASTAFI ADUR EN ThROSKULDURINN ER LESINN. Ekki
+     endurkvordun heldur HAVADA-HREINSUN: 1,6 a moti 1,1 per viku er
+     nakvaemlega 3,0 en leggst i 3,0000000000000004 og slapp thvi ur
+     „weak"-flokknum. Flokkur sem raest af sextanda aukastaf er ekki
+     flokkur.                                                          */
+  const net = +(sum(inn, 0, H) - sum(out, 0, H)).toFixed(6);
   /* VEIKT SKIPTI: talan er um SKIPTIN, ekki um vikuna. Reglan talar
      ekki um timasetningu thegar sjalft skiptid er hlutkesti.        */
   if (net <= SWAP_WEAK_NET) {

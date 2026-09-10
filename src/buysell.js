@@ -33,13 +33,16 @@
      nidurstada sem var maeld hedan.
    ============================================================ */
 
-import { swapTiming, SWAP_KMAX } from "./swaptiming.js";
+import { swapTiming, SWAP_KMAX, sum } from "./swaptiming.js";
 
 /* Sjondeildarhringurinn. UI-AFMORKUN eins og verdthakid i `rotation.js`
    — ekkert i FFDR, `rankScore` ne vaentum stigum les thessa tolu.
    Hann verdur ad vera >= SWAP_KMAX + 2 svo „bida k vikur" eigi vikur
    eftir til ad borga sig i.                                          */
 export const BS_HORIZON = 6;
+
+/* FPL-REGLA, EKKI OKKAR TALA: friskipti safnast upp i fimm (kafli 3). */
+export const FT_CAP = 5;
 
 /* ============================================================
    `ep` ER FALL, EKKI TAFLA — OG ThAD ER ASETT.
@@ -64,6 +67,16 @@ function series(ep, id, gw, maxGw, horizon) {
    myndi hverfa i summunni og lita ut eins og nulltala.               */
 const complete = a => Array.isArray(a) && a.length >= 2 && a.every(v => v != null);
 
+/* Verdi thess ad bida `k` vikur, borid vid ad gera thad STRAX. Sama
+   form og `valueOf` inni i `swapTiming` — ein formula, tveir lesendur. */
+function gainOf(pair, k) {
+  const { epOut, epIn } = pair;
+  if (!Array.isArray(epOut) || !Array.isArray(epIn)) return null;
+  const H = Math.min(epOut.length, epIn.length);
+  const at = j => sum(epOut, 0, j) + sum(epIn, j, H);
+  return +(at(Math.max(0, Math.min(k, H - 1))) - at(0)).toFixed(3);
+}
+
 export function planSwaps({ sells = [], buys = [], ep, gw, maxGw = 38,
                             freeTransfers = 1, horizon = BS_HORIZON } = {}) {
   if (typeof ep !== "function" || !Number.isFinite(gw)) return null;
@@ -76,6 +89,11 @@ export function planSwaps({ sells = [], buys = [], ep, gw, maxGw = 38,
   for (const s of sellList) {
     for (const b of buyList) {
       if (s.pos !== b.pos) continue;
+      /* SAMI MADUR BADUM MEGIN ER EKKI SKIPTI. Dalkarnir eru adskildir,
+         svo ekkert i vidmotinu hindrar thad — og an thessa birtist rodin
+         „Salah -> Salah, 0,0 stig" undir „No change worth making", sem er
+         satt en fainlega gagnlegt.                                     */
+      if (s.id === b.id) continue;
       const epOut = series(ep, s.id, gw, maxGw, horizon);
       const epIn = series(ep, b.id, gw, maxGw, horizon);
       if (!complete(epOut) || !complete(epIn)) {
@@ -110,24 +128,60 @@ export function planSwaps({ sells = [], buys = [], ep, gw, maxGw = 38,
   }
 
   /* ---- 3. RODUN I VIKUR ----
-     Skipti sem reglan segir „bida k vikur" vill viku gw+k; „nuna" vill
-     gw. Tvo skipti geta ekki bædi verid frit i somu viku (eitt friskipti
-     a viku), svo thad sidara faerist — og faerslan er MERKT.
-     VEIK SKIPTI FA ENGA VIKU. Thau eru ekki „seinna", their eru
-     „kannski ekki thess virdi", og ad setja thau i rod vaeri ad
-     breyta thogn i tillogu.                                          */
+     Skipti sem reglan segir „bida k vikur" vill viku gw+k; „nuna" vill gw.
+     VEIK SKIPTI FA ENGA VIKU. Thau eru ekki „seinna", their eru „kannski
+     ekki thess virdi", og ad setja thau i rod vaeri ad breyta thogn i
+     tillogu.
+
+     ============================================================
+     BANKINN ER TALINN, EKKI „EITT A VIKU" (lagfaert 9.9.2026)
+     ============================================================
+     Fyrsta utgafan leyfdi NAKVAEMLEGA EITT skipti i viku og hunsadi
+     `freeTransfers`. Med tveimur bonkudum friskiptum — sem er algengt,
+     thvi FPL geymir thau upp i fimm — sagdi listan thvi „bidðu viku
+     eftir friskipti" um friskipti sem notandinn ATTI ThEGAR. Thad er
+     RONG RADGJOF, ekki snyrtilegri birting: hann tapar viku ad astaedu
+     lausu.
+     Reglan er FPL-reglan sjalf: einn safnast a viku, thakid er fimm
+     (kafli 3: „Wildcard og Free Hit eyda EKKI sofnudum friskiptum ...
+     thau haldast og +1 baetist vid, thak 5").
+     Bankinn er hermdur AFRAM i tima: i hverri viku eru sett eins morg
+     skipti og hann leyfir, thau verdmaestu fyrst.                    */
   const scheduled = [];
-  const used = new Set();
-  const wants = chosen.filter(p => p.timing.verdict !== "weak")
+  const pending = chosen.filter(p => p.timing.verdict !== "weak")
     .map(p => ({ ...p, want: gw + (p.timing.k || 0) }))
     .sort((a, b) => a.want - b.want || b.net - a.net);
-  for (const p of wants) {
-    let wk = p.want;
-    while (used.has(wk) && wk <= maxGw) wk++;
-    if (wk > maxGw) { scheduled.push({ ...p, week: null, shifted: false, noRoom: true }); continue; }
-    used.add(wk);
-    scheduled.push({ ...p, week: wk, shifted: wk !== p.want, noRoom: false });
+  /* ============================================================
+     AVINNINGURINN VERDUR AD EIGA VID ThA VIKU SEM ER SYND (9.9.2026)
+     ============================================================
+     `swapTiming` reiknar `gain` fyrir SINA bestu viku (k). Faerist
+     skiptid — thvi betra skipti tok friskiptid — stod gamla talan eftir
+     og lysti viku sem varð ekki fyrir valinu. Maelt a fjorum eins
+     krossunum: rodin sagdi „Wait 1 gameweek — holding is worth about
+     5,0 points" medan hun BENTI a GW4, thar sem rett tala er **−8,0**.
+     Notandanum var thvi radid i VERSTU vikuna a sjondeildarhringnum,
+     med tolu sem atti vid adra viku.
+     Talan er nu endurreiknud fyrir vikuna sem er raunverulega synd, ur
+     SOMU rodum og SOMU formulu (`valueAt`), svo hun getur ekki rekist a
+     vid `swapTiming`.                                                 */
+  let bank = Math.max(0, Math.min(Number(freeTransfers) || 0, FT_CAP));
+  for (let wk = gw; wk <= maxGw && pending.length; wk++) {
+    /* +1 fyrir hverja viku sem lidur, thakad. Hann safnast lika thegar
+       ekkert er gert — thad er einmitt thess vegna sem bid getur borgad
+       sig tvisvar.                                                    */
+    if (wk > gw) bank = Math.min(bank + 1, FT_CAP);
+    const ready = pending.filter(p => p.want <= wk).sort((a, b) => b.net - a.net);
+    for (const p of ready) {
+      if (bank <= 0) break;
+      bank--;
+      pending.splice(pending.indexOf(p), 1);
+      const kAct = wk - gw;
+      scheduled.push({ ...p, week: wk, shifted: wk !== p.want, noRoom: false,
+                       kActual: kAct, gainAt: gainOf(p, kAct) });
+    }
   }
+  /* KOMST EKKI AD FYRIR LOK TIMABILS — talið, ekki thagad.           */
+  for (const p of pending) scheduled.push({ ...p, week: null, shifted: false, noRoom: true });
   const weak = chosen.filter(p => p.timing.verdict === "weak");
 
   return {

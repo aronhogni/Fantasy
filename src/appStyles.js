@@ -767,6 +767,7 @@ export const S = {
     padding:"2px 7px", color:"#fff" },
   bsWeekNow: { background:"#0a7a4a" },
   bsWeekWait: { background:"#b8860b" },
+  bsWeekNone: { background:"#6b6b75" },
   bsPos: { fontSize:9.5, color:C.text2, fontWeight:700 },
   bsNet: { fontFamily:mono, fontSize:12, fontWeight:700, color:C.text },
   bsWhy: { fontSize:11, color:C.text2, lineHeight:1.45, marginTop:4 },

@@ -965,7 +965,13 @@ console.log("\n5) TEXTARNIR SEM VORU TEKNIR UT ERU FARNIR");
      heldur vorn gegn thvi ad tomur dalkur lesist sem "engar faerir".   */
   const hasBsd = (() => { try { J("bsd_teams.json"); return true; } catch { return false; } })();
   if (!hasBsd) ok("varudin um otylltan dalk stendur", /is not filled in yet/.test(t));
-  else ok("BSD er til, svo varudin a ekki vid", true);
+  /* HER STOD `ok(..., true)` — fasti i skilyrdis-saetinu. Og thad er
+     GREININ SEM KEYRIR: `bsd_teams.json` er i repo-inu, svo `!hasBsd`
+     greinin (su eina sem hafdi tennur) er varanlega sofandi. Greinin sem
+     keyrir fullyrdir nu ANDSTAEDUNA — varudin ma EKKI standa thegar
+     heimildin er til.                                                  */
+  else ok("BSD er til, svo varudin a EKKI vid (og stendur ekki)",
+          !/is not filled in yet/.test(t));
 }
 
 /* ============================================================

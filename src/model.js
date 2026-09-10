@@ -1327,6 +1327,35 @@ export function calibrateExp(x) {
   return Math.max(0, a + b * Math.pow(x, g));
 }
 
+/* ============================================================
+   GRUNNURINN SJALFUR — OG HVORT HANN SE YFIRLEITT TIL (9.9.2026)
+   ============================================================
+   `expPointsFor` skilar **0** i tveimur GERSAMLEGA OLIKUM tilfellum:
+     · aud umferd (`!fxs.length`) — RAUNVERULEG nulltala, hann faer
+       engin stig thvi hann spilar ekki;
+     · enginn grunnur (`!base`) — VANTANDI GOGN: hvorki maeldur
+       grunnur, `ep_next` ne `points_per_game`.
+   Fyrir vollinn er 0 rett svar i badum tilfellum, thvi ellefu tolur eru
+   lagdar saman og `null` myndi eitra summuna. **Fyrir kallanda sem
+   SPYR er thad rangt**, og thad beit: kaup-/solu-listinn tok 0 sem
+   maelingu og bjo til „+21,5 stig" ur manni sem a ENGIN gogn.
+   MAELT 9.9.2026: **251 af 654** leikmonnum lenda i `!base`-greininni og
+   **105 theirra eru omerktir** (`status: "a"`) — their lita ut eins og
+   venjulegir leikmenn.
+   Fallid er thvi DREGID UT svo baðir lesendur noti SOMU utfaersluna
+   (sama regla og `headWidth`/`headBadge`): `expPointsFor` heldur sinu
+   0, og sa sem tharf ad greina tilfellin ad spyr thennan beint.
+   ============================================================ */
+export function pointsBasisFor({ p, basis }) {
+  if (!p) return null;
+  const measured = pointsBase({ p, ...basis });
+  if (Number.isFinite(measured) && measured > 0) return measured;
+  const ep = parseFloat(p.ep_next);
+  if (Number.isFinite(ep) && ep > 0) return ep;
+  const ppg = parseFloat(p.points_per_game || 0);
+  return Number.isFinite(ppg) && ppg > 0 ? ppg : null;
+}
+
 export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs, basis }) {
   if (!p || !fxs?.length) return 0;
   const pos = p.element_type;
@@ -1336,8 +1365,11 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs, basis }) {
      `basis` kemur fra kallandanum thvi `p` eitt ber hvorki `mins5` ne
      fyrra timabil — og hann er SLEPPT (ekki 0) thegar hann vantar.   */
   const measured = pointsBase({ p, ...basis });
-  const base = Number.isFinite(measured) && measured > 0 ? measured
-    : (Number.isFinite(ep) && ep > 0 ? ep : ppg);
+  const base = pointsBasisFor({ p, basis });
+  /* ENGINN GRUNNUR -> 0 HER, OG ThAD ER RETT FYRIR ThENNAN KALLANDA:
+     vollurinn leggur saman yfir ellefu menn og `null` myndi eitra
+     summuna. En 0 ER TVIRAETT — sja `pointsBasisFor` — svo kallandi
+     sem SPYR ma ekki lesa thad sem maelingu.                         */
   if (!base) return 0;
   const mean = POS_MEAN_PTS[pos] || 3.4;
   const calibrated = Number.isFinite(measured) && measured > 0;

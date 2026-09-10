@@ -79,7 +79,18 @@ function stripCommentsAndTemplates(src) {
         if (src[j] === q && depth === 0) break;
         j++;
       }
-      out += q + "".repeat(Math.max(0, j - i - 1)) + q;
+      /* LENGDIN HELST — EN LINUSKIPTIN GERDU ThAD EKKI (9.9.2026).
+         `"\x01".repeat(n)` heldur lengdinni, eins og athugasemdin ad ofan
+         segir, en thad skiptir HVERJUM staf ut fyrir \x01 — LIKA
+         linuskiptum. Linutalan i skyrslunni er reiknud sem
+         `slice(0, at).split("\n").length` a SAMA texta, svo hvert
+         `file:line` sem safnid tilkynnir var OF LAGT sem nemur theim
+         linuskiptum sem lagu inni i fjol-linu sniðmatum a undan — og
+         thetta safn er fullt af theim. Latent i dag (0 brot) en villan
+         hefdi sent naesta mann a ranga linu.
+         Nu eru linuskiptin ein latin standa og allt annad maskad, svo
+         BAEDI lengd og linutal haldast.                               */
+      out += q + src.slice(i + 1, j).replace(/[^\n]/g, "\x01") + q;
       i = j + 1; continue;
     }
     out += c; i++;

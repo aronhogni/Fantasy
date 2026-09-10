@@ -22,7 +22,70 @@ const POS = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
 /* VISTAD ASTAND ER OTRAUST INNTAK (CLAUDE.md kafli 8). Gilt JSON med
    rangri gerd felldi appid adur; her er hver hlid thvinguð i fylki af
    tolum og eitt onytt svid kostar adeins sig sjalft.                 */
-const ids = v => (Array.isArray(v) ? v.map(Number).filter(Number.isFinite) : []);
+const ids = v => (Array.isArray(v)
+  /* TVITEKNINGAR ERU FJARLAEGDAR VID LESTUR. Vidmotið hindrar thaer vid
+     INNSETNINGU en vistad astand fer ekki gegnum thad hlid, og tvitekid
+     id gaf React-lyklaarekstur, ✕ sem eyddi BADUM eintokum og nafn sem
+     var talid tvisvar i skyringar-linunni.                            */
+  ? [...new Set(v.map(Number).filter(Number.isFinite))]
+  : []);
+
+/* ============================================================
+   UNDIRHLUTIRNIR BUA UTAN VID `BuySell` — ANNARS TAPAST FOKUS
+   ============================================================
+   `Col` var skilgreindur INNI i `BuySell`, svo hann fekk NYTT
+   fall-audkenni i hverri teikningu. Hver innslattur kallar `setQ`,
+   sem teiknar upp a nytt, og React sa tha ANNAN hlutartypu — tok
+   dalkinn ur sambandi og bjo til nyjan `<input>`.
+   AFLEIDINGIN VAR AD EIGINLEIKINN VAR ONOTHAEFUR: notandinn skrifar
+   einn staf, bendillinn hrekkur ut ur reitnum og naesti stafur lendir
+   hvergi — og thar sem leitin krefst TVEGGJA stafa birtist tillogu-
+   listinn ALDREI vid venjulegan innslatt. Leitin er eina leidin til ad
+   setja mann i dalk, svo spjaldid var i raun ekki haegt ad nota.
+   **PROFIN GATU EKKI SED ThAD** thvi thau seeda `localStorage` og
+   skrifa aldrei staf — sja kafla C i `tests/buy-sell.mjs`.
+   ============================================================ */
+function Flag({ f, S }) {
+  if (!f) return null;
+  return (
+    <span style={S.bsFlag} title={f.news || "FPL has this player flagged"}>
+      {f.code}{f.pct != null ? ` ${f.pct}%` : ""}
+    </span>
+  );
+}
+
+function Col({ title, note, list, setList, q, setQ, onlySquad, hits, nameOf,
+               posOf, flagOf, S }) {
+  const found = hits(q, onlySquad);
+  return (
+    <div style={S.bsCol}>
+      <div style={S.bsColHead}>{title}<span style={S.bsColNote}>{note}</span></div>
+      <input style={S.bsInput} value={q} placeholder={"type a name…"}
+        onChange={e => setQ(e.target.value)} />
+      {found.length > 0 && (
+        <div style={S.bsHits}>
+          {found.map(p => (
+            <button key={p.id} style={S.bsHit}
+              onClick={() => { if (!list.includes(p.id)) setList([...list, p.id]); setQ(""); }}>
+              {p.web_name}<span style={S.bsHitPos}>{POS[p.element_type]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div style={S.bsChips}>
+        {list.length === 0 && <span style={S.bsEmpty}>{"nobody yet"}</span>}
+        {list.map(id => (
+          <span key={id} style={S.bsChip}>
+            {nameOf(id)}<span style={S.bsChipPos}>{posOf(id)}</span>
+            <Flag f={flagOf(id)} S={S} />
+            <button style={S.bsX} title={"Remove"}
+              onClick={() => setList(list.filter(x => x !== id))}>{"✕"}</button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /* FFDR-BRAUTIN FYRIR BADA — „ad appid horfi bædi a leikmann sem eg aetla ad
    selja og svo sem eg aetla ad kaupa serstaklega med tilliti til FFDR."
@@ -101,15 +164,7 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
       news: p.news || "",
     };
   };
-  const Flag = ({ id }) => {
-    const f = flagOf(id);
-    if (!f) return null;
-    return (
-      <span style={S.bsFlag} title={f.news || "FPL has this player flagged"}>
-        {f.code}{f.pct != null ? ` ${f.pct}%` : ""}
-      </span>
-    );
-  };
+
 
   /* Leitin skilar i mesta lagi 8 — listi sem er lengri en skjarinn er
      ekki listi heldur veggur.                                         */
@@ -119,34 +174,6 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
     return players.filter(p => p && (!onlySquad || squad.has(Number(p.id)))
       && String(p.web_name || "").toLowerCase().includes(s)).slice(0, 8);
   };
-
-  const Col = ({ title, note, list, setList, q, setQ, onlySquad }) => (
-    <div style={S.bsCol}>
-      <div style={S.bsColHead}>{title}<span style={S.bsColNote}>{note}</span></div>
-      <input style={S.bsInput} value={q} placeholder={"type a name…"}
-        onChange={e => setQ(e.target.value)} />
-      {hits(q, onlySquad).length > 0 && (
-        <div style={S.bsHits}>
-          {hits(q, onlySquad).map(p => (
-            <button key={p.id} style={S.bsHit}
-              onClick={() => { if (!list.includes(p.id)) setList([...list, p.id]); setQ(""); }}>
-              {p.web_name}<span style={S.bsHitPos}>{POS[p.element_type]}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <div style={S.bsChips}>
-        {list.length === 0 && <span style={S.bsEmpty}>{"nobody yet"}</span>}
-        {list.map(id => (
-          <span key={id} style={S.bsChip}>
-            {nameOf(id)}<span style={S.bsChipPos}>{posOf(id)}</span><Flag id={id} />
-            <button style={S.bsX} title={"Remove"}
-              onClick={() => setList(list.filter(x => x !== id))}>{"✕"}</button>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
 
   /* FFDR-BRAUTIN FYRIR BADA — thad var beinlinis thad sem var bedid um:
      „ad appid horfi bædi a leikmann sem eg aetla ad selja og svo sem eg
@@ -163,9 +190,11 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
 
       <div style={S.bsCols}>
         <Col title={"Selling"} note={"from your squad"} list={sell} setList={setSell}
-          q={qSell} setQ={setQSell} onlySquad={squad.size > 0} />
+          q={qSell} setQ={setQSell} onlySquad={squad.size > 0}
+          hits={hits} nameOf={nameOf} posOf={posOf} flagOf={flagOf} S={S} />
         <Col title={"Buying"} note={"anyone"} list={buy} setList={setBuy}
-          q={qBuy} setQ={setQBuy} onlySquad={false} />
+          q={qBuy} setQ={setQBuy} onlySquad={false}
+          hits={hits} nameOf={nameOf} posOf={posOf} flagOf={flagOf} S={S} />
       </div>
 
       {/* ENGIN TILLAGA ER LIKA SVAR — og hun verdur ad segja HVERS VEGNA.
@@ -182,15 +211,16 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
       {moves.length > 0 && (
         <div style={S.bsMoves}>
           {moves.map((m, i) => {
-            const wait = m.timing.verdict === "wait";
             return (
               <div key={i} style={S.bsMove}>
                 <div style={S.bsMoveHead}>
-                  <span style={{ ...S.bsWeek, ...(wait ? S.bsWeekWait : S.bsWeekNow) }}>
+                  <span style={{ ...S.bsWeek,
+                                 ...(m.noRoom ? S.bsWeekNone
+                                     : m.kActual > 0 ? S.bsWeekWait : S.bsWeekNow) }}>
                     {m.week == null ? "—" : `GW${m.week}`}
                   </span>
-                  <b>{nameOf(m.outId)}</b><Flag id={m.outId} />{" → "}
-                  <b>{nameOf(m.inId)}</b><Flag id={m.inId} />
+                  <b>{nameOf(m.outId)}</b><Flag f={flagOf(m.outId)} S={S} />{" → "}
+                  <b>{nameOf(m.inId)}</b><Flag f={flagOf(m.inId)} S={S} />
                   <span style={S.bsPos}>{POS[m.pos]}</span>
                   <span style={{ flex: 1 }} />
                   <span style={S.bsNet} title={"Expected points gained over the "
@@ -199,19 +229,38 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
                     {m.net > 0 ? "+" : ""}{m.net.toFixed(1)}{" pts"}
                   </span>
                 </div>
+                {/* ============================================================
+                    SETNINGIN LYSIR ThEIRRI VIKU SEM ER SYND (lagad 9.9.2026)
+                    ============================================================
+                    Aður var hun leidd af `m.timing.k` medan merkid var leitt af
+                    `m.week`, og „(pushed a week)" var HARDKODAD i eina viku.
+                    Rod gat thvi borid ThRJAR OSAMRYMANLEGAR fullyrdingar i einu:
+                    merkid GW4, textinn „Wait 1 gameweek" (= GW2) og „pushed a
+                    week" thegar hun var faerd um tvaer. Og talan sem fylgdi var
+                    avinningur ANNARRAR viku: maelt sagdi hun „+5,0" um viku sem
+                    var i raun **−8,0** — versta vikan a sjondeildarhringnum.
+                    Allt er nu leitt af `m.kActual` og `m.gainAt`, sem eru
+                    reiknud fyrir vikuna sem stendur a merkinu.               */}
                 <div style={S.bsWhy}>
-                  {m.timing.verdict === "now"
-                    ? (m.shifted
-                      ? `Do it now on the fixtures — but GW${m.want} is already taken by a `
-                        + `move worth more, so this one gets the free transfer in GW${m.week}.`
-                      : "Do it now — waiting does not pay on these fixtures.")
-                    : `Wait ${m.timing.k} gameweek${m.timing.k === 1 ? "" : "s"}`
-                      + (m.timing.why === "noFreeTransfer"
-                        ? " — you have no free transfer, so the move costs −4 today."
-                        : ` — holding is worth about ${m.timing.gain.toFixed(1)} points, `
-                          + "because the fixtures cross over.")}
-                  {m.shifted && m.timing.verdict === "wait"
-                    && " (pushed a week: another move already has that free transfer.)"}
+                  {m.noRoom
+                    ? "No free transfer left before the season ends — this one does "
+                      + "not fit unless you take a hit. It is listed so it is not "
+                      + "silently dropped."
+                    : m.kActual === 0
+                    ? "Do it now — waiting does not pay on these fixtures."
+                    : m.timing.why === "noFreeTransfer" && m.kActual === 1
+                    ? "Wait one gameweek — you have no free transfer, so the move "
+                      + "costs −4 today."
+                    : `Wait ${m.kActual} gameweek${m.kActual === 1 ? "" : "s"}`
+                      + (m.gainAt == null ? "."
+                        : m.gainAt > 0
+                        ? ` — holding is worth about ${m.gainAt.toFixed(1)} points on `
+                          + "these fixtures."
+                        : ` — not because waiting pays (it costs about `
+                          + `${Math.abs(m.gainAt).toFixed(1)} points here) but because `
+                          + "your free transfers are spoken for until then.")}
+                  {m.shifted && !m.noRoom
+                    && ` It wanted GW${m.want}; a move worth more had that free transfer.`}
                 </div>
                 <Path id={m.outId} label={"out"} pathOf={pathOf} S={S} />
                 <Path id={m.inId} label={"in"} pathOf={pathOf} S={S} />
@@ -229,8 +278,8 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
           <div style={S.bsWeakHead}>{"No change worth making"}</div>
           {weak.map((m, i) => (
             <div key={i} style={S.bsWeakRow}>
-              <b>{nameOf(m.outId)}</b><Flag id={m.outId} />{" → "}
-              <b>{nameOf(m.inId)}</b><Flag id={m.inId} />
+              <b>{nameOf(m.outId)}</b><Flag f={flagOf(m.outId)} S={S} />{" → "}
+              <b>{nameOf(m.inId)}</b><Flag f={flagOf(m.inId)} S={S} />
               <span style={S.bsPos}>{POS[m.pos]}</span>
               <span style={{ flex: 1 }} />
               <span style={S.bsWeakNet}>{m.net > 0 ? "+" : ""}{m.net.toFixed(1)}{" pts"}</span>
@@ -242,10 +291,38 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
               + "injury reads here as \"not worth it\". It is worth it again the day "
               + "he is fit — this line is not the fixtures talking."}</div>
           )}
+          {/* HORIZON-INN ER SA SEM VAR NOTADUR, EKKI FASTINN. Undir lok
+              timabils er hann styttri en 6, og setningin nefndi samt 6 —
+              tala um maelingu sem var ekki gerd. Og throskuldurinn er
+              KVARDADUR a sex vikum, svo hann er merktur sem slikur thegar
+              glugginn er styttri.                                        */}
           <div style={S.bsWeakNote}>{"Under about "}{SWAP_WEAK_NET}
-            {" projected points over "}{BS_HORIZON}{" gameweeks the real outcome is a "
+            {" projected points over "}{weak[0]?.timing?.horizon ?? BS_HORIZON}
+            {(weak[0]?.timing?.horizon ?? BS_HORIZON) !== BS_HORIZON
+              ? ` gameweeks (the threshold was calibrated on ${BS_HORIZON}, so it is `
+                + "strict this late in the season)"
+              : " gameweeks"}{" the real outcome is a "
             + "coin flip (49–52% positive, against 65.9% above +5). Timing is not the "
             + "question when the move itself is not."}</div>
+        </div>
+      )}
+
+      {/* ============================================================
+          OVIS POR VORU TALIN OG ALDREI SYND (lagad 9.9.2026)
+          ============================================================
+          `plan.unknown` var reiknad og hvergi lesid, svo par sem VANTAR
+          gogn hvarf thegjandi um leid og eitt gott par var a listanum.
+          Notandinn sa eina tillogu og enga vishendingu um ad hinum
+          hefdi verid sleppt — thogn sem les eins og „hin voru skodud og
+          reyndust verri".                                              */}
+      {plan?.unknown > 0 && (
+        <div style={S.bsSay}>
+          {plan.unknown === 1 ? "One pair " : `${plan.unknown} pairs `}
+          {"could not be ranked: expected points are missing for at least one "
+           + "gameweek in the window. That happens when a player has no measured "
+           + "base, no ep_next and no points-per-game — usually somebody who has "
+           + "not played. A missing week is left out rather than counted as zero, "
+           + "so no suggestion is made at all."}
         </div>
       )}
 
@@ -255,6 +332,18 @@ export default function BuySell({ players = [], squadIds = [], ep, pathOf,
           {[...plan.noMatch.sell, ...plan.noMatch.buy]
             .map(id => `${nameOf(id)} (${posOf(id)})`).join(", ")}
           {". A transfer swaps a player for one in the same position."}
+        </div>
+      )}
+
+      {/* ID SEM ER EKKI LENGUR TIL VERDUR AD SEGJA ThAD SJALFT. Vistad
+          astand lifir felagaskipti af, og adur bar chip-id-ið „#9999" medan
+          skyringar-linan nefndi HINN manninn sem opöraðan — hun kenndi
+          theim um sem var i lagi.                                        */}
+      {[...sell, ...buy].some(id => !byId[id]) && (
+        <div style={S.bsSay}>
+          {"Not in the current player data: "}
+          {[...sell, ...buy].filter(id => !byId[id]).map(id => `#${id}`).join(", ")}
+          {". Saved lists outlive transfers out of the league — remove them with ✕."}
         </div>
       )}
 

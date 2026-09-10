@@ -56,7 +56,7 @@ import { buildRecommendations, swapCandidates, sellTiming } from "./recommend.js
 import { bestTeamPlan, legalFormation, posKey, XI_SIZE } from "./bestteam.js";
 import { clamp, sellTenths, HOME_PTS, lastBenchKey, makeCsFor,
   tierOf, TIER_BG, TIER_FG, TIER_NAME,
-  makeFixDifficulty, computeTransferCost, isInitialSquadPick, applyPlan, expPointsFor, dcChance, priceMovePrediction,
+  makeFixDifficulty, computeTransferCost, isInitialSquadPick, applyPlan, expPointsFor, pointsBasisFor, dcChance, priceMovePrediction,
   rankScore, eloStale, parseEntryId, rarelyStarted, priceFloors,
   intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
 
@@ -2910,6 +2910,27 @@ export default function App() {
   }
 
   /* ============================================================
+     VAENT STIG FYRIR KAUP-/SOLU-LISTANN — 0 OG NULL ERU SITT HVAD
+     ============================================================
+     `expPoints` skilar 0 badi fyrir AUDA UMFERD (raunveruleg nulltala)
+     og fyrir MANN AN GAGNA (`!base` i `expPointsFor`). Vollurinn ma lesa
+     bædi sem 0 — hann leggur saman yfir ellefu menn — en listinn SPYR,
+     og hann tok 0 sem maelingu: madur an gagna fekk „+21,5 stig" sem var
+     hreinn tilbuningur, i badar attir (godur ef hann var keyptur,
+     vondur ef hann var seldur).
+     MAELT: 252 af 654 eiga engan grunn og 105 theirra eru OMERKTIR, svo
+     their lita ut eins og venjulegir leikmenn a listanum.
+     `pointsBasisFor` er SAMA fall og `expPointsFor` notar innanhuss —
+     engin onnur utfaersla af sömu spurningu.                          */
+  const epForSwap = useCallback((id, g) => {
+    const p = byId[id];
+    if (!p) return null;
+    if (pointsBasisFor({ p, basis: basisFor(p) }) == null) return null;
+    /* HER er 0 raunverulegt: hann a grunn en enga leiki thessa viku.  */
+    return expPoints(id, g);
+  }, [byId, basisFor, expPoints]);
+
+  /* ============================================================
      FFDR-BRAUTIN FYRIR KAUP-/SOLU-LISTANN
      ============================================================
      Notandinn bad um ad appid horfi „a leikmann sem eg aetla ad selja og
@@ -4591,7 +4612,7 @@ export default function App() {
           <BuySell
             players={players || []}
             squadIds={[...squadIds]}
-            ep={expPoints}
+            ep={epForSwap}
             pathOf={bsPathOf}
             gw={gw}
             maxGw={maxGw}

@@ -69,7 +69,15 @@ console.log("\n=== 1. FFDR4 ER I GRUNN-FLOKKNUM OG A SKJANUM ===");
   ok(def?.hi === false, "og LAEGRA er lettara (hi:false) eins og allar FFDR-tolur");
   ok(/DEFENSIVE/.test(def?.note || "") && /ATTACKING/.test(def?.note || ""),
      "notan segir BADAR tolurnar og hverjum thaer tilheyra");
-  ok(await click(button(/^👥/)) === undefined, "Player stats opnadur");
+  /* HER STOD `ok(await click(...) === undefined, "Player stats opnadur")`.
+     `click` ber ENGA `return`-setningu, svo `async` fallid skilar alltaf
+     `undefined` og skilyrdid var SATT fyrir hvada inntak sem er — lika ef
+     hnappurinn fannst ekki og ekkert var smellt. Fullyrdingin er nu
+     tviskipt: hnappurinn VERDUR ad finnast, og flipinn verdur ad opnast. */
+  const tabBtn = button(/^👥/);
+  ok(!!tabBtn, "👥-flipahnappurinn finnst");
+  await click(tabBtn);
+  ok(/Players/.test(txt()), "Player stats opnadist");
   ok(/FFDR4/.test(txt()), "hausinn ber FFDR4");
 }
 
@@ -128,7 +136,39 @@ console.log("\n=== 2. STADAN RAEDUR TOLUNNI — MAELT A RAUNGOGNUM ===");
     const p = players.find(x => x.team === t.id);
     if (p) ok(val(p) == null, `${t.short} a enga oleikna leiki -> TOMT, ekki 0`);
   }
-  ok(true, `lid an oleikinna leikja i dag: ${noneLeft.length}`);
+  /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b). Her stod
+     `ok(true, ...)` med tolunni i NAFNINU: graent tikk sem maeldi
+     ekkert. Og lykkjan hér ad ofan keyrir NULL sinnum i dag — 0 af 20
+     lidum eiga engan oleikinn leik — svo reglan „lid an leikja fær TOMT,
+     ekki 0" var ALDREI reynd. Tilfellid kemur fyrst eftir sidustu
+     umferd, svo thad er profad a TILBUNUM gognum eins og repo-id gerir
+     annars stadar (`defcon-shrink`, `bsd-pipeline`).                   */
+  ok(noneLeft.length === 0 || noneLeft.every(t => {
+       const p = players.find(x => x.team === t.id);
+       return !p || val(p) == null;
+     }), `lid an oleikinna leikja: ${noneLeft.length} (oll TOM ef einhver)`);
+  {
+    /* TILBUID TILFELLI ThAR SEM SVARID ER ThEKKT FYRIRFRAM: leikjaskra
+       thar sem EITT felag a enga oleikna leiki. Astandid kemur fyrst
+       eftir sidustu umferd og profid ma ekki bida eftir theim degi.   */
+    const t0 = teams[0];
+    const allFx = J("fixtures.json").fixtures || J("fixtures.json");
+    const doctored = allFx.map(f => (f.team_h === t0.id || f.team_a === t0.id)
+      ? { ...f, finished: true, finished_provisional: true } : f);
+    const enNone = makeEnricher({ players, teamById, fixtures: doctored,
+      events: J("events.json").events || J("events.json"), odds: J("odds.json").teams,
+      season: "live", isLive: true, diffOf });
+    const p0 = players.find(x => x.team === t0.id);
+    const other = players.find(x => x.team !== t0.id && val(x) != null);
+    ok(!!p0 && !!other, `forsenda: leikmadur hja ${t0.short} og hja odru felagi`);
+    ok(enNone(p0).fields._ffdr4 == null,
+       `TILBUID: ${t0.short} an oleikinna leikja -> TOMT, ekki 0 `
+       + `(fekk ${JSON.stringify(enNone(p0).fields._ffdr4)})`);
+    /* NABUI SEM SANNAR AD MAELITAEKID SE A LIFI — an hans vaeri „tomt"
+       lika satt ef enricherinn skiladi tomu FYRIR ALLA.               */
+    ok(enNone(other).fields._ffdr4 != null,
+       `...medan felag med leiki ber AFRAM tolu (${enNone(other).fields._ffdr4})`);
+  }
 }
 
 console.log("\n=== 3. SIAN ER STILLANLEG A STADNUM ===");
