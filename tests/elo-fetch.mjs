@@ -272,7 +272,11 @@ ok(Object.keys(teamsById).length === 20, `20 FPL-lid i stubbnum (${Object.keys(t
 const API_CSV = "Rank,Club,Country,Level,Elo\n"
   + TEAMS.map((t, i) => `${i + 1},${(CLUBELO_CAND[t.short] || [t.name])[0]},ENG,1,${1900 - i}`).join("\n");
 
-const runFetchElo = ({ apiOk = false, html = HTML }) => {
+/* `redDays` er STUBBADUR: hann les status_streak.json af diski i pipeline-unni
+   (hve marga daga rodin hefur verid raud) og tilraunafjoldinn a API-id
+   fylgir honum — 6 thegar hosturinn er nyfallinn, 2 thegar hann hefur
+   verid raudur i tvo daga eda meira (10.9.2026).                       */
+const runFetchElo = ({ apiOk = false, html = HTML, redDays = 0 }) => {
   const calls = [], writes = [], recs = [], warns = [], tries = [];
   const eloFetchStub = async (url, n) => {
     calls.push(url); tries.push([url, n]);
@@ -284,7 +288,7 @@ const runFetchElo = ({ apiOk = false, html = HTML }) => {
     throw new Error(`unexpected url ${url}`);
   };
   const fn = new Function("eloFetch", "today", "parseCSV", "teamsById", "writeJSON",
-    "status", "record", "console",
+    "status", "record", "console", "redDays",
     `${fbDecl}\n${feDecl}\nreturn fetchElo;`)(
     eloFetchStub, "2026-08-20",
     new Function(`${csvDecl}\nreturn parseCSV;`)(),
@@ -292,9 +296,22 @@ const runFetchElo = ({ apiOk = false, html = HTML }) => {
     async (p, o) => writes.push([p, o]),
     { updated: "2026-08-20T17:45:00.000Z", sources: {} },
     (n, o, c, note) => recs.push({ n, ok: o, count: c, note }),
-    { log: () => {}, warn: m => warns.push(m) });
+    { log: () => {}, warn: m => warns.push(m) },
+    () => redDays);
   return { fn, calls, writes, recs, warns, tries };
 };
+
+{ // TILRAUNAFJOLDINN A API-ID FYLGIR RAUDU RODINNI (10.9.2026)
+  const fresh = runFetchElo({ apiOk: false, redDays: 0 });
+  await fresh.fn();
+  const nFresh = fresh.tries.find(([u]) => /api\.clubelo\.com\/\d/.test(u))?.[1];
+  ok(nFresh === 6, `nyfallinn hostur faer fullar sex tilraunir (${nFresh})`);
+  const stale = runFetchElo({ apiOk: false, redDays: 5 });
+  await stale.fn();
+  const nStale = stale.tries.find(([u]) => /api\.clubelo\.com\/\d/.test(u))?.[1];
+  ok(nStale === 2, `hostur sem hefur verid raudur i fimm daga faer tvaer (${nStale}) — ~5 min sparadar per dagskeyrslu`);
+  ok(stale.writes.some(([p]) => p === "elo.json"), "og vefvaraleidin skrifar elo.json samt");
+}
 
 { // API nidri, HTML i lagi -> skrifad, og stadan segir HVADAN
   const h = runFetchElo({ apiOk: false });

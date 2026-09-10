@@ -144,7 +144,11 @@ const OK_UNREAD = {
      inn yfirstandandi E0. Thad er INNTAKS-breyting a lidsstyrk og fellur
      thvi undir regluna i kafla 3: maela fyrst. Skrad her svo thad se ekki
      gleymt i agust.                                                      */
-  "fdcouk/E0-2627.json":       "hragogn yfirstandandi timabils; pipeline les 2526/2425 — sja nota",
+  /* SNIDMATS-LYKILL (10.9.2026): skrain heitir nu `fdcouk/E0-${seasonCodes().cur}.json`
+     — timabilid er LEITT, ekki skrifad (atta fastar i fetch.mjs urdu ein
+     tafla). `{` i lyklinum heldur honum utan bokstaflegu stodnunar-
+     athugunarinnar, eins og odds_raw-sniðmatid.                        */
+  "fdcouk/E0-{season}.json":   "hragogn yfirstandandi timabils; team_form les prev/prev2 ur seasonCodes() — sja nota",
   /* ============================================================
      ARKIV-SVID — SKRIFUD VILJANDI, LESIN AF ENGUM, OG ThAU MEGA EKKI
      VERDA MERKI AN NYRRAR MAELINGAR (baettust vid 16.8.2026)

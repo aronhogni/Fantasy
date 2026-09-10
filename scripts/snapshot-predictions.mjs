@@ -32,7 +32,8 @@
    Kallad ur hradri keyrslunni (`fetch-fast`), thvi thad er hun sem gengur
    naerri frestinum; daglega keyrslan kl. 05 UTC er of langt fra honum.
    ============================================================ */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from "node:fs";
+import { isInvokedDirectly } from "./invoked.mjs";
 import { makeFixDifficulty, tierOf, rankScore, pointsBase, expPointsFor } from "../src/model.js";
 /* `startFeatures` er VILJANDI EKKI FLUTT INN: hun tekur fylki af minutum og
    pipeline reiknar tha vidd ThEGAR i `imminent.json` (`start_feats`). Innflutt
@@ -424,7 +425,10 @@ function recordLedger(gw, okFlag, count, note, gaps = []) {
     (st.sources ||= {}).prediction_ledger = {
       ok: !!okFlag && !gaps.length, count, note: `GW${gw}: ${note}${gapTxt}`,
     };
-    writeFileSync(p, JSON.stringify(st));
+    /* Atomiskt eins og `writeJSON` i fetch.mjs: halfskrifud status.json
+       vaeri ogilt JSON i commit-i (10.9.2026).                          */
+    writeFileSync(p + ".tmp", JSON.stringify(st));
+    renameSync(p + ".tmp", p);
   } catch (e) {
     /* Status-skrain er EKKI mikilvaegari en bokhaldid sjalft: ef hun er
        ekki til (t.d. handvirk keyrsla an pipeline) ma thetta ekki fella
@@ -535,7 +539,7 @@ export function shouldWrite({ gw, deadlineMs, nowMs, exists, existing = null,
         Rauntima-keyrslan (an `--dry`) haettir afram vid lokad hlid.
    ============================================================ */
 /* ---------------- keyrsla ---------------- */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isInvokedDirectly(import.meta.url)) {   // sja scripts/invoked.mjs
   const dry = process.argv.includes("--dry");
   if (dry) console.log("snapshot: DRY RUN - nothing will be written (no data/predictions/, no status.json)");
   const events = arr(tryJ("events.json"), "events") || [];

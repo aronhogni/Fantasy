@@ -46,6 +46,7 @@
              BSD_KEY=... node scripts/fetch-bsd-teams.mjs 337
    ============================================================ */
 import { writeFileSync, readFileSync } from "node:fs";
+import { isInvokedDirectly } from "./invoked.mjs";
 /* MAELDU FASTARNIR OG LIDATAFLAN KOMA UR `src/bsd.js` (11.8.2026).
    ADUR VORU ThEIR AFRITADIR HINGAD — `BIG_CHANCE_XG = 0.18` og
    `IN_BOX_X = 17` stodu her sem eigin `export const` med athugasemdinni
@@ -148,7 +149,7 @@ export function aggregateTeamShots(matches, { bigChanceXg = BIG_CHANCE_XG, inBox
 /* ============================================================
    SOKNIN — krefst BSD_KEY. Allt her ad ofan er profad an hans.
    ============================================================ */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isInvokedDirectly(import.meta.url)) {   // sja scripts/invoked.mjs
   /* LYKILLINN: `process.env` fyrst (thad er thad sem GitHub Actions gefur),
      annars `.env.local` sem er i `.gitignore`. Sidari leidin er til svo
      lykillinn thurfi ALDREI ad standa i skipanalinu — skipanalinur rata i

@@ -75,7 +75,8 @@
    Keyrsla:  node scripts/validate-data.mjs        (0 = ma committa)
              node scripts/validate-data.mjs --json <slod>
    ============================================================ */
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { isInvokedDirectly } from "./invoked.mjs";
 import { readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
@@ -232,6 +233,11 @@ const ROLLING = /^(bsd_odds|bsd_lineups)\.json$/;
 const SOURCE_RESET = [
   [/^news\.json$/,    /^price_changes(\.|$)/],
   [/^lineups\.json$/, /^probe(\.|$)/],
+  /* DAGATALS-DRIFID: `weather.json` ber adeins OSPILADA leiki, svo eftir
+     sidasta leik timabilsins fer hun ur ~20 i 0 af RETTRI astaedu — og
+     hlidid hefdi hafnad hverju dagskommiti thar til einhver greip inn i
+     (10.9.2026). Negld a skra OG svid eins og hinar.                    */
+  [/^weather\.json$/, /^fixtures(\.|$)/],
 ];
 export function regressions(nowObj, headObj, name = "file") {
   const out = [];
@@ -268,10 +274,7 @@ export function regressions(nowObj, headObj, name = "file") {
    ekki nidur. Hreinu follin (`counts`, `regressions`) eru fyrir ofan
    thetta og eru thvi innflytjanleg an thess ad neitt gerist.
    ============================================================ */
-const invokedDirectly = (() => {
-  try { return realpathSync(process.argv[1] || "") === realpathSync(new URL(import.meta.url).pathname); }
-  catch { return false; }
-})();
+const invokedDirectly = isInvokedDirectly(import.meta.url);   // sja scripts/invoked.mjs
 if (!invokedDirectly) {
   /* innflutt: engin skrif, engin utganga, engin prentun */
 } else {

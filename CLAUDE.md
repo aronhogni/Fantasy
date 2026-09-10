@@ -459,7 +459,18 @@ skráir sig í `status.json` með `record(...)` og birtist undir **Data sources*
 heimildinni þegjandi. **HTTP 200 er ekki gögn** — prófsteinninn er innihaldið
 (E0 `Div`, ClubElo „deactivated", `lineupType`).
 
-**`main()` er skilyrt** (`invokedDirectly`, `realpathSync` báðum megin) svo
+**Tímabilið er LEITT, hvergi skrifað** (`seasonCodes()` í `fetch.mjs`,
+10.9.2026): E0-slóðir, E1-nýliðagrunnurinn, `seasonYear` fyrir meiðsli,
+`ARCHIVE_SEASON` og `SEASON_DIRS` koma öll úr GW1-frestinum í
+`events.json` (dagsetning varaleið, júlí = nýtt tímabil). Átta fastar hefðu
+annars þjónað gögnum fyrra árs undir grænni röð næsta ágúst. Nýliðarnir eru
+félög í `teams_map.json` sem eiga enga röð í E0 fyrra tímabils, og
+`promoted_baseline.json` er endurbyggð þegar það mengi breytist. Vörður:
+`clock-states.mjs`. Leikur telst spilaður við `fixturePlayedRow` (finished
+eða provisional) alls staðar þar sem „næstu leikir" eru valdir.
+
+**`main()` er skilyrt** (`isInvokedDirectly` úr `scripts/invoked.mjs`, ein
+útfærsla fyrir allar fjórar skriftur sem gæta þess, `realpathSync` báðum megin) svo
 skráin sé innflytjanleg og hrein föll prófanleg. Vörðurinn keyrir raunverulegt
 afrit í nýju ferli báðar leiðir (`fetch-entry.mjs`) — texta-leit gæti ekki
 fellt það, því athugasemdin nefnir sjálf `main()`.
@@ -623,6 +634,12 @@ greinina og eyddi kvótanum). CDN-cache 60 s. `fpl-entry`, `fpl-picks`,
 **Grænt = í mínu liði · ljósfjólublátt = í samanburði/röðun · blátt = valinn
 dálkur.** Borðinn liggur á **frosna hólfinu**, ekki röðinni. Vörður `watchlist.mjs`.
 
+**Litapallettan `C` er EIN og býr í `appStyles.js`** (10.9.2026) — tíu
+viðmót báru hvert sitt afrit sem var hlutmengi hennar með sömu gildum. Sama
+gildir um **`POS_LABEL`/`POS_COLOR`/`fmtPrice` í `stats.js`** og
+**`PlayerPhoto` í `Crest.jsx`** (ein mynd-með-varaleið; þrjú afrit höfðu þegar
+rekið í sundur). Ný skrá sem þarf lit, stöðuheiti eða andlitsmynd flytur inn.
+
 ### Íkon
 
 **Í smárri stærð er SILHÚETTAN allt** — hvert íkon á annarri grunnform-
@@ -655,6 +672,16 @@ er prófað í RAUNSTÆRÐ. Tveir flipar með sama tákni = ekkert tákn.
 - **Skipta-glugginn (`selling`) má ekki fjarlægja** (bankinn, 3-per-félag).
 - **`isIncoherent`-talningin verður að haldast sýnileg** (`goals_scored: 11`
   með `minutes: 0`).
+- **Opinberi fyrirliðinn er lesinn inn AÐEINS þegar (lið, umferð) opinbera
+  liðsins breytist** (10.9.2026). Picks-effectið keyrir við hvert `liveTick`
+  og við endurstillingar-hnappana; óskilyrt `setCaptain` þurrkaði út
+  fyrirliða sem var valinn fyrir næstu umferð innan mínútu meðan leikur stóð.
+  `official` uppfærist áfram og „↺ my FPL team" les hann þaðan (kafli 14).
+- **`expPoints` er `useCallback` og ber sín inntök sjálft**; memo sem les
+  það telur ÞAÐ í deps, ekki afrit af inntökum þess. `seasonGames` er
+  flestir leikir sem félag hefur spilað (úr leikjunum), ekki `finished`-
+  talning umferða. `csFor` og `lastBenchKey` búa í `model.js`,
+  `firstOpenGw` í `availability.js` — og eru prófuð þar (`app-helpers.mjs`).
 - **FFDR-taflan byrjar á fyrstu ÓLEIKNU umferð** (`firstOpenGw`) — sjálfgildi,
   ekki hindrun.
 

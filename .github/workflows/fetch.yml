@@ -2,7 +2,7 @@ name: fetch-data
 
 on:
   schedule:
-    - cron: "0 5 * * *"     # 05:00 UTC daglega
+    - cron: "10 5 * * *"    # 05:10 UTC daglega — ekki a sama minutu sem fetch-fast (:00/:30) tikkar
   workflow_dispatch: {}      # handvirk keyrsla úr Actions-flipanum
 
 permissions:

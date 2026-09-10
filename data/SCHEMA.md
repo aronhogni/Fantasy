@@ -501,9 +501,8 @@ Vex um ~1 MB á umferð (38 MB/tímabil). **Eyðið henni ekki** — sama regla 
 ### `luck.json`
 ```
 { result_enum_seen: [...],
-  teams:   [{ fpl_id, short, matches, goals, conceded, xg, xgc,
-              goals_minus_xg, conceded_minus_xgc,
-              woodwork_for, woodwork_against, source, xg_incomplete }] }
+  teams:   [{ fpl_id, short, matches, goals, conceded,
+              woodwork_for, woodwork_against, source }] }
 ```
 
 **`players`-sviðið var tekið út 11.8.2026.** Það var skjalfest hér með

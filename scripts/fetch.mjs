@@ -14,8 +14,8 @@
    ============================================================ */
 
 import { mkdir, writeFile, readFile, readdir, rename, unlink } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { isInvokedDirectly } from "./invoked.mjs";
 /* Markaðs-umbreytingin (odds -> vænt mörk -> FFDR-þyngd) er FLUTT í
    src/market.js svo bakprófið keyri nakvaemlega sama kóða og pipeline.
    Hún var áður staðbundin hér og þar með óprófanleg — samt með vog 0,50
@@ -41,6 +41,61 @@ import { normName } from "../src/names.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
+/* LEIKUR TELST SPILADUR VID `finished_provisional` — `finished` flettist
+   ~3 dogum sidar (CLAUDE.md kafli 1). Var utfaert a fjorum stodum, og thrir
+   theirra lasu `!f.finished` eitt (defcon-taekifaeri, vedur, meidsla-dagar),
+   svo their toldu leik sem var buinn med „naestu leikjum" i thrja daga.  */
+const fixturePlayedRow = f => f?.finished === true || f?.finished_provisional === true;
+
+/* HVE MARGA DAGA HEFUR HEIMILD VERID RAUD? Lesid ur status_streak.json
+   (skrifud i lok hverrar keyrslu, sja `redStreaks`). 0 = graen eda oskrad. */
+function redDays(name) {
+  try {
+    const since = JSON.parse(readFileSync(`${DATA}/status_streak.json`, "utf8"))?.sources?.[name]?.since;
+    if (!since) return 0;
+    const d = (Date.now() - new Date(since).getTime()) / 864e5;
+    return Number.isFinite(d) && d > 0 ? d : 0;
+  } catch { return 0; }
+}
+
+/* ============================================================
+   TIMABILS-KODAR — LEIDDIR, EKKI SKRIFADIR (10.9.2026)
+   ============================================================
+   Attu stadir i thessari skra baru yfirstandandi eda fyrra timabil sem
+   FASTA (`2627/E0.csv`, `E0-2526`, `2526/E1.csv`, `seasonYear = 2026`,
+   `ARCHIVE_SEASON`, `SEASON_DIRS`, nylida-trioid) — og hver theirra
+   hefdi thjonad gognum FYRRA ars undir graenni rod naesta agust.
+   Fost fullyrding um lifandi astand ureldist thegjandi (CLAUDE.md 1).
+   Upphafsarid er lesid ur GW1-frestinum i events.json (sama klukka sem
+   `seasonLabelFromEvents` og framendinn nota); vanti skrain er
+   dagsetningin varaleid: fra og med juli telst nytt timabil, thvi FPL
+   opnar leikinn i juli og events.json ber tha ThEGAR nyja timabilid.
+   Sync (readFileSync) svo einingar-fastar geti lesid thad vid hledslu.  */
+export function seasonStartYearFrom(events, now = new Date()) {
+  const dl = Array.isArray(events) ? events.find(e => e?.id === 1)?.deadline_time : null;
+  const y = dl ? new Date(dl).getUTCFullYear() : NaN;
+  if (Number.isFinite(y)) return y;
+  return now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+}
+export function seasonCodesFor(startYear) {
+  const yy = y => String(y % 100).padStart(2, "0");
+  const code = y => `${yy(y)}${yy(y + 1)}`;          // 2026 -> "2627"
+  const dash = y => `${y}-${yy(y + 1)}`;             // 2026 -> "2026-27"
+  return {
+    startYear,
+    cur: code(startYear), prev: code(startYear - 1), prev2: code(startYear - 2),
+    label: `${startYear}/${yy(startYear + 1)}`,       // "2026/27"
+    curDash: dash(startYear), prevDash: dash(startYear - 1),
+    prevDirs: [1, 2, 3, 4, 5].map(k => dash(startYear - k)),   // ["2025-26", …, "2021-22"]
+  };
+}
+let _seasonCodes = null;
+export function seasonCodes() {
+  if (_seasonCodes) return _seasonCodes;
+  let events = null;
+  try { events = JSON.parse(readFileSync(`${DATA}/events.json`, "utf8")).events; } catch {}
+  return (_seasonCodes = seasonCodesFor(seasonStartYearFrom(events)));
+}
 
 /* ============================================================
    DEFCON-FORGILDID (p0) ER MAELT, EKKI VALID — LAGAD 27.8.2026
@@ -1118,7 +1173,10 @@ async function fetchFPL() {
     strength_defence_home:t.strength_defence_home, strength_defence_away:t.strength_defence_away }));
   await writeJSON("teams.json", { updated: status.updated, teams: teamsOut });
   // chips (nöfn/ikon fyrir framenda) ef til í bootstrap
-  if (bootstrap.chips) await writeJSON("chips.json", bootstrap.chips);
+  if (bootstrap.chips) {
+    await writeJSON("chips.json", bootstrap.chips);
+    record("fpl_chips", true, Array.isArray(bootstrap.chips) ? bootstrap.chips.length : 0);
+  }
 
   const map = {};
   for (const t of teams) {
@@ -1525,6 +1583,8 @@ async function computeConsistency() {
 export function playedGwIds(events, fixtures) {
   const evs = Array.isArray(events) ? events : [];
   const fxs = Array.isArray(fixtures) ? fixtures : [];
+  /* Sama regla og `fixturePlayedRow` ofar — skrifud ut her svo fallid se
+     sjalfstaett: tests/defcon-shrink.mjs dregur thad ut sem texta.        */
   const done = f => f?.finished === true || f?.finished_provisional === true;
   const byGw = new Map();
   for (const f of fxs) {
@@ -1870,7 +1930,9 @@ async function computeDefcon(events, els) {
   const opportunity = {};
   for (const tid of Object.keys(teamAtt)) {
     const own = teamDef[tid] ? teamDef[tid].xgc90 : null;
-    const upcoming = fixturesArr.filter(f => !f.finished && (f.team_h === +tid || f.team_a === +tid)).slice(0, 6);
+    /* `finished || finished_provisional` skrifad ut (ekki `fixturePlayedRow`)
+       thvi tests/defcon-shrink.mjs dregur computeDefcon ut sem texta.       */
+    const upcoming = fixturesArr.filter(f => !(f.finished || f.finished_provisional) && (f.team_h === +tid || f.team_a === +tid)).slice(0, 6);
     const oppAtt = [];
     for (const f of upcoming) {
       const opp = f.team_h === +tid ? f.team_a : f.team_h;
@@ -2593,7 +2655,14 @@ async function fetchElo() {
   let eng = null, via = "api.clubelo.com", apiErr = null;
   try {
     // ClubElo notar http (ekki https) — https gefur oft "fetch failed"
-    const text = await eloFetch(`http://api.clubelo.com/${today}`);
+    /* HOSTUR SEM HEFUR VERID RAUDUR I DAGA FAER EKKI SEX TILRAUNIR MED
+       5/20/45/90/180 s BID (10.9.2026). api.clubelo.com hefur ekki svarad
+       sidan 14.8.; hver dagskeyrsla eyddi ~5 min i hann adur en vefurinn
+       (varaleidin) var reyndur — og breikkadi push-kapphlaupid vid
+       fetch-fast. status_streak.json ber hve lengi rodin hefur verid raud;
+       vid tvo daga eda meira duga tvaer tilraunir. Hun kviknar sjalf aftur
+       (rodin verdur graen -> streak hverfur -> sex tilraunir).           */
+    const text = await eloFetch(`http://api.clubelo.com/${today}`, redDays("elo_api") >= 2 ? 2 : 6);
     const { header, rows } = parseCSV(text);
     console.log(`ClubElo dags-haus: ${header.join(",")}`);
     eng = rows.filter(r => r.Country === "ENG" && (r.Level === "1" || r.Level === "2"));
@@ -3260,7 +3329,7 @@ async function fetchFdcouk() {
      404 = "bidur timabils", allt annad = raunveruleg villa.               */
   let text;
   try {
-    ({ text } = await getText("https://www.football-data.co.uk/mmz4281/2627/E0.csv"));
+    ({ text } = await getText(`https://www.football-data.co.uk/mmz4281/${seasonCodes().cur}/E0.csv`));
   } catch (e) {
     /* ============================================================
        ThRIDJA UTGAFAN AF SOMU ROD: 404 -> 301 -> 300 (maelt 20.8.2026).
@@ -3321,13 +3390,13 @@ async function fetchFdcouk() {
   const e0Rows = rows.filter(r => r.Div === "E0");
   if (!e0Rows.length) {
     record("fdcouk_e0", true, 0,
-      `waiting for the season — the 2627 E0 path serves ${divs.join("/") || "no Div column"} `
+      `waiting for the season — the ${seasonCodes().cur} E0 path serves ${divs.join("/") || "no Div column"} `
       + `(football-data redirects it until the PL file exists), so nothing was written`);
     return;
   }
   /* Blandad svar er ekki "nogu gott": ef E0-radir eru til en adrar deildir
      fljota med er adeins E0 skrifad, og talan i status segir bædi.        */
-  await writeJSON("fdcouk/E0-2627.json", { header, rows: e0Rows });
+  await writeJSON(`fdcouk/E0-${seasonCodes().cur}.json`, { header, rows: e0Rows });
   record("fdcouk_e0", true, e0Rows.length,
     divs.length > 1 ? `E0 only; the file also carried ${divs.filter(d => d !== "E0").join("/")}` : null);
 }
@@ -3447,13 +3516,38 @@ async function fetchHistoricalE0() {
     `${fetchedSeasons} new seasons · ${Object.keys(refOut).length} referees · ${Object.keys(h2hOut).length} team pairs`);
 }
 
-/* ========== 6. NÝLIÐA-GRUNNLÍNA — B-deild 2025/26, EINU SINNI ========== */
+/* ========== 6. NÝLIÐA-GRUNNLÍNA — B-deild FYRRA timabils ========== */
+/* LEITT, EKKI SKRIFAD (10.9.2026): timabilid og nylida-trioid voru fastar
+   (`2526/E1.csv`, ["Coventry","Hull","Ipswich"]) og skran var sleppt „already
+   present" um alla framtid — 2027/28-nylidarnir hefdu fengid Championship-
+   tolur 2025/26 undir graenni rod. Nylidar = felog i teams_map.json sem eiga
+   ENGA rod i E0 fyrra timabils; skran er endurbyggd thegar thad mengi
+   breytist (nytt timabil), annars latin standa (lokid timabil breytist ekki). */
 async function fetchPromotedBaseline() {
   const path = `${DATA}/promoted_baseline.json`;
-  if (existsSync(path)) { record("promoted_baseline", true, 0, "already present — skipped"); return; }
-  const { text } = await getText("https://www.football-data.co.uk/mmz4281/2526/E1.csv");
+  const codes = seasonCodes();
+  let promoted = [];
+  try {
+    const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
+    const prevRows = JSON.parse(await readFile(`${DATA}/fdcouk/E0-${codes.prev}.json`, "utf8")).rows || [];
+    const inPrev = new Set(prevRows.flatMap(r => [r.HomeTeam, r.AwayTeam]));
+    promoted = Object.values(tmap).map(v => v?.fdcouk).filter(n => n && !inPrev.has(n)).sort();
+  } catch {}
+  if (!promoted.length) {
+    record("promoted_baseline", false, 0,
+      `could not derive the promoted clubs (teams_map.json + fdcouk/E0-${codes.prev}.json needed) - previous file kept`);
+    return;
+  }
+  if (existsSync(path)) {
+    let have = [];
+    try { have = Object.keys(JSON.parse(await readFile(path, "utf8"))).sort(); } catch {}
+    if (JSON.stringify(have) === JSON.stringify(promoted)) {
+      record("promoted_baseline", true, have.length, `already present for ${promoted.join("/")} — skipped`);
+      return;
+    }
+  }
+  const { text } = await getText(`https://www.football-data.co.uk/mmz4281/${codes.prev}/E1.csv`);
   const { rows } = parseCSV(text);
-  const promoted = ["Coventry", "Hull", "Ipswich"];
   const agg = {};
   const bump = (team, isHome, r) => {
     const a = agg[team] || (agg[team] = { games:0, shots:0, sot:0, goals:0, sh_ag:0, sot_ag:0, goals_ag:0 });
@@ -3478,14 +3572,14 @@ async function fetchPromotedBaseline() {
       goals_against_pg: +(a.goals_ag/a.games).toFixed(2) };
   }
   await writeJSON("promoted_baseline.json", out);
-  record("promoted_baseline", true, Object.keys(out).length, "championship_proxy");
+  record("promoted_baseline", true, Object.keys(out).length, `championship_proxy ${codes.prev} for ${promoted.join("/")}`);
 }
 
 /* ========== 7. OPEN-METEO — veður fyrir óspilaða leiki ========== */
 async function fetchWeather() {
   const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
   const teamsMap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
-  const upcoming = fixtures.filter(f => !f.finished && f.kickoff_time);
+  const upcoming = fixtures.filter(f => !fixturePlayedRow(f) && f.kickoff_time);
   const out = [];
   let wErr = 0;          // talning fyrir `record` nedar — sja rokin thar
   for (const f of upcoming) {
@@ -4009,7 +4103,7 @@ async function fetchInjuries() {
      af 100 dagskvótanum. Season-leiðin er samt reynd fyrst svo uppfærsla
      í borgað þrep virki sjálfkrafa (1 kall í stað 6).                   */
   const errTxt = o => (o.errors && (Array.isArray(o.errors) ? o.errors.join("; ") : JSON.stringify(o.errors))) || "";
-  const seasonYear = 2026;
+  const seasonYear = seasonCodes().startYear;
   let d = await apiSports(`/injuries?league=39&season=${seasonYear}`);
   let via = `league+season=${seasonYear}`;
   /* Reikningurinn lokadur? Lesid af FYRSTA svarinu, adur en `d` er
@@ -4030,7 +4124,7 @@ async function fetchInjuries() {
       const day = t => t.toISOString().slice(0, 10);
       const win = new Set([-1, 0, 1].map(o => day(new Date(Date.now() + o * 864e5))));
       dates = [...new Set(fixtures
-        .filter(f => f.kickoff_time && !f.finished && win.has(f.kickoff_time.slice(0, 10)))
+        .filter(f => f.kickoff_time && !fixturePlayedRow(f) && win.has(f.kickoff_time.slice(0, 10)))
         .sort((a, b) => a.kickoff_time.localeCompare(b.kickoff_time))
         .map(f => f.kickoff_time.slice(0, 10)))];
     } catch {}
@@ -4494,7 +4588,10 @@ async function fetchFast() {
     /* Leikjaskrain sem hrada keyrslan skrifadi ordfaum linum ofar — hun
        er thvi ferskari en nokkur onnur mynd sem vid gaetum sott.        */
     const liveFx = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
-    await fetchLiveRounds({ events, fixtures: Array.isArray(liveFx) ? liveFx : (liveFx.fixtures || []) });
+    const liveRes = await fetchLiveRounds({ events, fixtures: Array.isArray(liveFx) ? liveFx : (liveFx.fixtures || []) });
+    /* Rodin var skrad adeins vid BILUN — graen keyrsla skildi ekkert eftir
+       sig i status_fast.json (10.9.2026).                                 */
+    record("fpl_live", liveRes.ok, liveRes.written, liveRes.note);
   } catch (e) { record("fpl_live", false, 0, e.message); }
 
   try { await fetchLineups(); }
@@ -5223,7 +5320,7 @@ async function deriveLuck() {
   const fd2fpl = {};
   Object.entries(tmap).forEach(([id, v]) => { if (v.fdcouk) fd2fpl[v.fdcouk] = Number(id); });
   let e0rows = [];
-  try { e0rows = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2526.json`, "utf8")).rows; } catch {}
+  try { e0rows = JSON.parse(await readFile(`${DATA}/fdcouk/E0-${seasonCodes().prev}.json`, "utf8")).rows; } catch {}
 
   const e0 = {};
   for (const r of e0rows) {
@@ -5237,33 +5334,27 @@ async function deriveLuck() {
       d.matches++; d.gf += gf; d.ga += ga;
     }
   }
-  // xG/xGC úr FPL (ATH: 19% vantar v. leikmanna sem fóru — merkjum það)
-  const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
-  const fplAgg = {};
-  players.forEach(p => {
-    const a = fplAgg[p.team] || (fplAgg[p.team] = { xg: 0, gkMins: 0, xgc: 0 });
-    a.xg += parseFloat(p.expected_goals || 0);
-    if (p.element_type === 1 && (p.minutes || 0) > a.gkMins) {
-      a.gkMins = p.minutes; a.xgc = parseFloat(p.expected_goals_conceded || 0);
-    }
-  });
+  /* xG/xGC ERU FARIN UR ThESSARI SKRA (10.9.2026). Thau komu ur LIFANDI
+     players.json (yfirstandandi timabil) medan mork/mork a sig koma ur E0
+     FYRRA timabils — teljari og nefnari ur sitthvoru timabilinu (CLAUDE.md
+     kafli 12): luck.json bar ARS goals 71 · xg 5,0 · goals_minus_xg 66.
+     Ekkert las thau (teamstats.js les matches/goals/conceded og reiknar
+     xG ur BSD), svo villan var osynileg — og thess vegna ma hun ekki
+     standa: rong tala sem enginn les i dag er rong tala sem einhver les
+     a morgun.                                                           */
   // nýliða-staðgengill
   let pb = {};
   try { pb = JSON.parse(await readFile(`${DATA}/promoted_baseline.json`, "utf8")); } catch {}
 
   const teamOut = teams.map(t => {
-    const d = e0[t.id], f = fplAgg[t.id] || {};
+    const d = e0[t.id];
     if (d) {
       return {
         fpl_id: t.id, short: t.short, matches: d.matches,
         goals: d.gf, conceded: d.ga,
-        xg: +(f.xg || 0).toFixed(1), xgc: +(f.xgc || 0).toFixed(1),
-        goals_minus_xg: f.xg ? +(d.gf - f.xg).toFixed(1) : null,
-        conceded_minus_xgc: f.xgc ? +(d.ga - f.xgc).toFixed(1) : null,
         woodwork_for: wood[t.short]?.for ?? null,
         woodwork_against: wood[t.short]?.against ?? null,
-        source: "e0+fpl",
-        xg_incomplete: true,   // FPL-summa vantar leikmenn sem fóru úr deildinni
+        source: "e0",
       };
     }
     // nýliðar án PL-sögu: B-deildar-staðgengill. STANGARSKOT ERU EKKI TIL -> null
@@ -5274,7 +5365,6 @@ async function deriveLuck() {
       matches: b?.games ?? null,
       goals: b ? Math.round(b.goals_pg * (b.games || 46)) : null,
       conceded: b ? Math.round(b.goals_against_pg * (b.games || 46)) : null,
-      xg: null, xgc: null, goals_minus_xg: null, conceded_minus_xgc: null,
       woodwork_for: wood[t.short]?.for ?? null,        // null ef BSD vantar — EKKI 0
       woodwork_against: wood[t.short]?.against ?? null,
       source: b ? "championship_proxy" : "none",
@@ -5305,15 +5395,15 @@ async function deriveTeamForm() {
   Object.entries(tmap).forEach(([id, v]) => { if (v.fdcouk) fd2fpl[v.fdcouk] = Number(id); });
   let rows = [], header = [], rowsPrev = [];
   try {
-    const j = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2526.json`, "utf8"));
+    const j = JSON.parse(await readFile(`${DATA}/fdcouk/E0-${seasonCodes().prev}.json`, "utf8"));
     rows = j.rows; header = j.header;
-  } catch { record("team_form", false, 0, "E0-2526 missing"); return; }
+  } catch { record("team_form", false, 0, `E0-${seasonCodes().prev} missing`); return; }
   // FYRRA tímabil líka — MÆLING sýnir að 2-tímabila blöndun bætir miðjumanna-spá
   // um +0,014 í fylgni (45% vog á tímabilið á undan).
-  try { rowsPrev = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2425.json`, "utf8")).rows; } catch {}
+  try { rowsPrev = JSON.parse(await readFile(`${DATA}/fdcouk/E0-${seasonCodes().prev2}.json`, "utf8")).rows; } catch {}
 
   // REGLA: prenta raunverulega header-röð, ekki treysta lista
-  console.log(`E0-2526 header (${header.length} columns): ${header.join(",")}`);
+  console.log(`E0-${seasonCodes().prev} header (${header.length} columns): ${header.join(",")}`);
 
   const agg = {};
   for (const r of rows) {
@@ -5466,7 +5556,7 @@ async function deriveFormFeatures() {
    FBref skilar 403. Thess vegna er hvergi latid sem svo ad thetta se til. */
 
 const MIRROR = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data";
-const ARCHIVE_SEASON = "2025-26";      // sidasta LOKNA timabilid
+const ARCHIVE_SEASON = seasonCodes().prevDash;      // sidasta LOKNA timabilid — leitt, ekki skrifad
 const POS_FROM_TYPE = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
 
 /* E0-leikir -> uppflettitafla a (dagsetning, heimalid, utilid) i fdcouk-nofnum. */
@@ -5575,7 +5665,6 @@ async function buildLiveGwReport(gw) {
 
 /* ---- (b) FYRIR TIMABIL: sidasta lokna umferd fyrra timabils ur speglun ---- */
 async function buildArchiveGwReport() {
-  const seasonLabel = ARCHIVE_SEASON.replace("-", "/20");   // "2025-26" -> "2025/2026"
   const nice = `${ARCHIVE_SEASON.slice(0,4)}/${ARCHIVE_SEASON.slice(5)}`; // "2025/26"
 
   const { text: tTeams } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/teams.csv`);
@@ -6110,7 +6199,7 @@ async function fetchEspnShots() {
    notandinn valid timabil i fellilistanum sem umferdar-bilid a ekki.
    KOSTNADUR: player_seasons.json staekkar (~1,9 MB -> ~3 MB); hun er
    letihladin i listanum svo thad snertir ekki fyrstu hledslu appsins.  */
-const SEASON_DIRS = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22"];
+const SEASON_DIRS = seasonCodes().prevDirs;   // fimm sidustu loknu timabil, leidd
 const seasonLabel = d => `${d.slice(0, 4)}/${d.slice(5)}`;
 
 /* CSV med gaesalappa-studningi. parseCSV (naiv) dugar fyrir E0 en players_raw
@@ -6433,7 +6522,6 @@ async function deriveImminent() {
     }
   }
 
-  const num_ = v => { const x = parseFloat(v); return Number.isFinite(x) ? x : 0; };
   /* TVEIR GLUGGAR UR EINNI SOKN.
      mo/ao voru validerud vid 4 umferdir og byrjunar-likur vid 5, svo vid
      saekjum 5 og LEIDUM mo-gluggann ut ur seriunni (sidustu 4 umferdir).
@@ -6658,11 +6746,5 @@ async function main() {
 
    `realpath` a badum megin: workflow-in kalla `node scripts/fetch.mjs`
    ur rot repo-sins, en symlinkud eda afstaed slod ma ekki thagga hana.  */
-const invokedDirectly = (() => {
-  const argv = process.argv[1];
-  if (!argv) return false;
-  try {
-    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(argv);
-  } catch { return false; }
-})();
+const invokedDirectly = isInvokedDirectly(import.meta.url);   // sja scripts/invoked.mjs
 if (invokedDirectly) main().catch(e => { console.error(e); process.exit(1); });

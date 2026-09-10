@@ -77,6 +77,10 @@ async function getText(url) {
 }
 async function writeJSON(name, obj) { WRITES.push({ name, obj }); }
 function record(k, ok, n, note) { RECORDS.push({ k, ok, n, note }); }
+/* STUBBUR (10.9.2026): timabilid er LEITT i fetch.mjs (seasonCodes(), ur
+   events.json) og fallid les thad; her er thad neglt a 2026/27 svo profid
+   se stodugt — thad profar Div-vordinn, ekki dagatalid.                */
+function seasonCodes() { return { startYear: 2026, cur: "2627", prev: "2526", prev2: "2425", label: "2026/27" }; }
 `;
   const mod = await import("data:text/javascript," + encodeURIComponent(
     STUB + fnCSV + "\n" + fnFd + "\nexport { fetchFdcouk, RECORDS, WRITES };"));

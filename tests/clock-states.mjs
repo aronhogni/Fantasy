@@ -41,6 +41,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { computeTransferCost } from "../src/model.js";
+import { seasonCodesFor, seasonStartYearFrom } from "../scripts/fetch.mjs";
 import { startFeatures, startProbability, stampStartWindow, inImminentPool,
          IMMINENT_MIN_MINUTES } from "../src/stats.js";
 import { rotationRisk, banRisk, seasonHasStarted, startedGameweeks } from "../src/availability.js";
@@ -1132,6 +1133,28 @@ console.log("─".repeat(84));
     W("fdcouk/E0-2627.json", { rows: [{ Div: "EC" }] });
     ok(run().status !== 0, "og fellur a EC-rodum i E0-skranni (301-gildran, stokkbreyting)");
   } finally { rmSync(tmp, { recursive: true, force: true }); }
+}
+
+/* ============================================================
+   TIMABILS-KODARNIR ERU LEIDDIR (10.9.2026)
+   Atta fastar i fetch.mjs (`2627/E0.csv`, `E0-2526`, `seasonYear = 2026`,
+   ARCHIVE_SEASON, SEASON_DIRS …) urdu ein leidd tafla. Profad a tilbunum
+   inntokum thar sem svarid er thekkt — OG a arinu sem fastarnir hefdu
+   svikid (2027): hardkodad "2627" fellur a sidustu fullyrdingunni.
+   ============================================================ */
+console.log("\n=== TIMABILS-KODAR — leiddir af GW1-fresti, dagsetning varaleid ===");
+{
+  const ev = [{ id: 1, deadline_time: "2026-08-21T17:30:00Z" }];
+  ok(seasonStartYearFrom(ev) === 2026, "GW1-fresturinn gefur upphafsarid");
+  ok(seasonStartYearFrom(null, new Date("2027-06-30T00:00:00Z")) === 2026, "engin events + 30. juni 2027 -> timabilid 2026 (enn i gangi)");
+  ok(seasonStartYearFrom(null, new Date("2027-07-01T00:00:00Z")) === 2027, "engin events + 1. juli 2027 -> nytt timabil 2027 (FPL opnar i juli)");
+  const c = seasonCodesFor(2026);
+  ok(c.cur === "2627" && c.prev === "2526" && c.prev2 === "2425", "cur/prev/prev2 = 2627/2526/2425");
+  ok(c.label === "2026/27" && c.prevDash === "2025-26", "label 2026/27, prevDash 2025-26");
+  ok(JSON.stringify(c.prevDirs) === JSON.stringify(["2025-26","2024-25","2023-24","2022-23","2021-22"]), "prevDirs eru fimm sidustu loknu timabil");
+  ok(seasonCodesFor(2099).cur === "9900", "aldamota-ummerki: 2099 -> 9900");
+  const n = seasonCodesFor(seasonStartYearFrom([{ id: 1, deadline_time: "2027-08-13T17:30:00Z" }]));
+  ok(n.cur === "2728" && n.prev === "2627", "naesta timabil: E0-slodin verdur 2728 og fyrra 2627 — fastinn hefdi thjonad 2526");
 }
 
 console.log(`\nKLUKKU-ASTOND: ${pass} stodust, ${fail} fellu`);
