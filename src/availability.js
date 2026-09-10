@@ -339,3 +339,22 @@ export function rotationRisk(p, seasonGames) {
   const level = !enough ? "low" : pct >= 75 ? "safe" : pct >= 50 ? "mid" : "high";
   return { starts: st, played, pct, prevSeason, level };
 }
+
+/* FYRSTA UMFERD SEM A OLEIKINN LEIK — sjalfgildi FFDR-toflunnar (CLAUDE.md
+   kafli 8). Leidd af LEIKJUNUM (`fixturePlayed`), ekki `is_current` og ekki
+   `finished` a umferdinni. Umferd sem a ENGA leiki i skranni telst opin
+   (engin gogn -> her), og fullspilud skra skilar maxGw. Flutt ur App.jsx
+   10.9.2026 svo klukkurnar bui a einum stad med planningGw.              */
+export function firstOpenGw(fixtures, maxGw = 38) {
+  const byGw = {};
+  for (const f of (fixtures || [])) {
+    if (!f?.event) continue;
+    (byGw[f.event] = byGw[f.event] || []).push(f);
+  }
+  for (let g = 1; g <= maxGw; g++) {
+    const own = byGw[g];
+    if (!own || !own.length) return g;
+    if (!own.every(fixturePlayed)) return g;
+  }
+  return maxGw;
+}

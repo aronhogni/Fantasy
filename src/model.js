@@ -1631,3 +1631,71 @@ export function rarelyStarted({ perGw = [], byId = {}, floors = {},
     .sort((a, b) => a.starts - b.starts || b.freesTenths - a.freesTenths || a.id - b.id)
     .slice(0, maxRows);
 }
+
+/* ============================================================
+   FLUTT UR App.jsx 10.9.2026 — birting las likan-rokfraedi sem bjo i JSX
+   ============================================================ */
+
+/* Maelt heimavallar-forskot i stigum per leik, per stodu. Birt a
+   leikjarodum spjaldsins ("+0.51"). Var skilgreint i App.jsx einu — maeld
+   tafla a heima her med DIFF_W og MEASURED_POS (CLAUDE.md kafli 1).      */
+export const HOME_PTS = { 1: 0.197, 2: 0.507, 3: 0.297, 4: 0.735 };
+
+/* SIDASTA UMFERD <= g SEM A EIGIN BEKKJAR-UPPSTILLINGU. `benchSwaps` er
+   hlutur AF FYLKJUM ur localStorage, svo hver lykill er profadur med
+   Array.isArray — `{"1":"x"}` er gildur hlutur (CLAUDE.md kafli 8).
+   Var utfaert ThRISVAR i App.jsx (squadForGw, keyAt, appendBenchSwaps) og
+   athugasemdin vid keyAt vidurkenndi thad. Skilar 0 ef engin er til.      */
+export function lastBenchKey(benchSwaps, g) {
+  let k = 0;
+  for (let j = 1; j <= g; j++) {
+    const l = benchSwaps?.[j];
+    if (Array.isArray(l) && l.length > 0) k = j;
+  }
+  return k;
+}
+
+/* CS%-KEDJAN: bokmakari -> ClubElo -> logistic (cleanSheetProb) -> maelda
+   taflan. Bjo i App.jsx sem `csFor` og var hvergi profud sem kedja —
+   adeins `cleanSheetProb` (tests/cs-logistic.mjs). Sömu reglur:
+   · bokmakaralinan gildir um EINN leik — motherji OG dagsetning sannreynd
+     (CLAUDE.md kafli 8), annars naesta threp;
+   · ClubElo a `teamId|YYYY-MM-DD`;
+   · logistic thegar badar lidstolur eru til; thakad [3, 70];
+   · neydarvara: maelda taflan a FFDR (eda hratt FDR).
+   Skilar { cs, src } thar sem src er "bookie" | "elo" | "probability" |
+   "measured" | null — ekkert threp fyllir inn tolu sem thad hefur ekki.   */
+export function makeCsFor({ teamById = {}, odds = null, eloCsByFx = {}, teamMetrics = {},
+                            eloByTeam = {}, fixDifficulty = () => null } = {}) {
+  return function csFor(teamId, fx) {
+    const short = teamById[teamId]?.short;
+    const bk = odds && short && odds[short];
+    const bkValid = bk && Number.isFinite(bk.cs) && fx &&
+      teamById[fx.opp]?.short === bk.opp &&
+      (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0, 10) === bk.kickoff.slice(0, 10));
+    if (bkValid) return { cs: bk.cs, src: "bookie" };
+    if (fx?.kickoff) {
+      const e = eloCsByFx[`${teamId}|${fx.kickoff.slice(0, 10)}`];
+      if (e && Number.isFinite(e.cs)) return { cs: Math.round(e.cs), src: "elo" };
+    }
+    if (!fx) return { cs: null, src: null };
+    const me = teamMetrics[teamId], op = teamMetrics[fx.opp];
+    if (me && op) {
+      const myElo = eloByTeam[teamId]?.elo, opElo = eloByTeam[fx.opp]?.elo;
+      const p = cleanSheetProb({
+        ownXgc: me.xgc90, oppXg: op.xg90, home: !!fx.home,
+        eloDiff: (myElo && opElo) ? (opElo - myElo) / 100 : 0,
+        fdr: fx.fdr,
+      });
+      if (Number.isFinite(p)) return { cs: clamp(Math.round(100 * p), 3, 70), src: "probability" };
+    }
+    const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
+    /* VANTANDI d ER EKKI ROD I TOFLUNNI. `lookupPos(2,"cs",undefined)` fellur
+       a jadar-rod og skiladi 11% merkt "measured" — omaeld tala sem litur ut
+       eins og maeling (fannst thegar kedjan var loks profud, 10.9.2026).   */
+    if (d2 == null || !Number.isFinite(+d2)) return { cs: null, src: null };
+    const raw = lookupPos(2, "cs", +d2);
+    if (!Number.isFinite(raw)) return { cs: null, src: null };
+    return { cs: clamp(Math.round(raw), 3, 70), src: "measured" };
+  };
+}

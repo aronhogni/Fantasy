@@ -17,7 +17,7 @@ import { RAW } from "./dataUrl.js";
    nota (src/stats.js) — ekki afritadar formulur. Sama regla sem gildir um
    model.js: ein utfaersla, svo profin keyri thad sem appid birtir.        */
 import { moScore, aoScore, startProbability, inImminentPool,
-         indexImminentByTeam, matchImminent } from "./stats.js";
+         indexImminentByTeam, matchImminent, STAT_BY_KEY, fmtPrice } from "./stats.js";
 import PlayerList from "./PlayerList.jsx";
 import ShotMap from "./ShotMap.jsx";
 /* ThROSKULDURINN ER LESINN, EKKI SKRIFADUR — sja notuna vid "Big chances
@@ -37,7 +37,7 @@ import { C, S } from "./appStyles.js";
 import { saveState, loadState } from "./storage.js";
 import { availOf, banRisk, setPieceOf, rotationRisk, fixturePlayed,
          matchesPlayedByClub, seasonHasStarted, startedGameweeks,
-         planningGw, latestStartedGw } from "./availability.js";
+         planningGw, latestStartedGw, firstOpenGw as firstOpenGwOf } from "./availability.js";
 /* `Kit`, `crestUrl` og `CREST_FALLBACK` VORU DAUD HER (25.8.2026).
    MAELT: 0 tilvik utan innflutningsins — eina "notkunin" var inni i
    ATHUGASEMD (linu ~1080), sem er nakvaemlega gildran i CLAUDE.md 13:
@@ -54,10 +54,10 @@ import { buildRecommendations, swapCandidates, sellTiming } from "./recommend.js
    `teamstats.js` (CLAUDE.md kafli 7): afrit af reglunni her vaeri onnur
    utfaersla sem gaeti rekid i sundur vid tha sem velin sjalf notar. */
 import { bestTeamPlan, legalFormation, posKey, XI_SIZE } from "./bestteam.js";
-import { clamp, sellTenths, lookupPos,
+import { clamp, sellTenths, HOME_PTS, lastBenchKey, makeCsFor,
   tierOf, TIER_BG, TIER_FG, TIER_NAME,
   makeFixDifficulty, computeTransferCost, isInitialSquadPick, applyPlan, expPointsFor, dcChance, priceMovePrediction,
-  cleanSheetProb, rankScore, eloStale, parseEntryId, rarelyStarted, priceFloors,
+  rankScore, eloStale, parseEntryId, rarelyStarted, priceFloors,
   intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
 
 /* ============================================================
@@ -179,7 +179,6 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
    ATH: 'home' í DIFF_W er EFTIRSTÖÐVA-stuðull, ekki hráa forskotið. FDR gefur
    þegar lægra gildi heima, svo við bætum aðeins því við sem FDR MISSIR.
    Þess vegna er röðin önnur: FWD 0,24 > MID 0,16 > DEF 0,08 > GK 0,02.        */
-const HOME_PTS = { 1: 0.197, 2: 0.507, 3: 0.297, 4: 0.735 };  // mæld stig/leik
 
 /* MÆLDIR FLOKKAR PER STÖÐU — kvantílar, allir EINRÆNIR.
    pts = raunveruleg meðalstig per leikmann í þeirri stöðu í einum leik.     */
@@ -1014,7 +1013,6 @@ export default function App() {
 
 
   // preSeason er reiknað neðar (þarf events) — ref til að buyOf nái í það
-  const preSeasonRef = React.useRef(false);
 
   /* ---------- Andstæðingar: lið þeirra í valdri umferð ----------
      Endurnotar proxy-leiðirnar sem eru ÞEGAR til (fpl-entry, fpl-picks) —
@@ -1111,16 +1109,19 @@ export default function App() {
      `is_current`, frestur) vaeri fjorda afritid af klukkunni og thau tvo
      sem voru til svorudu SITTHVORU 24.8.2026.                           */
   const startedGws = startedGameweeks(events);
-  const seasonGames = (events || []).filter(e => e.finished).length;
   /* LEIKIR SEM HVERT FELAG HEFUR SPILAD — NEFNARINN I `rotationRisk`.
-     `seasonGames` telur umferdir sem eru `finished`, og hun er RETT thar
-     sem hun er notud annars stadar (uppsafnadar tolur eru bundnar vid
-     stadfestar umferdir). Hun er hins vegar RANGUR NEFNARI fyrir hlutfall
-     byrjana: umferd telst ekki `finished` fyrr en bonus er stadfestur, svo
+     `seasonGames` taldi adur umferdir sem eru `finished` og var RANGUR
+     NEFNARI fyrir hlutfall byrjana OG minutna (buildRecommendations deilir
+     minutum thessa timabils med henni): umferd telst ekki `finished` fyrr
+     en bonus er stadfestur, svo
      eftir GW1 var hun 0 medan sex leikir voru spiladir — og
      `rotationRisk` deildi ThESSA timabils byrjunum med 38 leikjum SIDASTA
      timabils. Sja blokkina i `availability.js`.                          */
   const playedByClub = useMemo(() => matchesPlayedByClub(fixtures), [fixtures]);
+  /* Flestir leikir sem felag hefur spilad — ur leikjunum, ekki `finished`
+     a umferdinni (9.9.2026). Nefnari i buildRecommendations og varaleid
+     rotationRisk thar sem `playedByClub[team]` vantar.                    */
+  const seasonGames = Math.max(0, ...Object.values(playedByClub || {}));
   /* HANN STENDUR HER OG ThAD ER EKKI SMEKKSATRIDI: `const` i falli er i
      TEMPORAL DEAD ZONE thangad til lina hans keyrir, og `expPoints`
      (fall-yfirlysing, hoistud) er kolluð UR useMemo-um SEM LIGGJA OFAR.
@@ -1170,6 +1171,15 @@ export default function App() {
     const e = (events || []).find(x => x.id === g);
     return e?.deadline_time ? Date.now() >= new Date(e.deadline_time).getTime() : false;
   }, [events]);
+  /* ---------- FYRIR TÍMABIL ----------
+     Verð hreyfast ekki og skipti eru ótakmörkuð og frí þar til GW1-frestur
+     rennur út. Kaupverð læsist því EKKI fyrr en þá. Skilgreint HER, a
+     undan buyOf/bank, i stad thess ad fara gegnum ref sem var skrifad
+     eftir memo-in sem lasu hann (einnar teikningar tof, 9.9.2026).      */
+  const gw1Deadline = events?.find(e => e.id === 1)?.deadline_time || null;
+  // SAMA KLUKKA og `deadlinePassed` — ekki tvo svor vid somu spurningu.
+  // `gw1Deadline ? … : false`: vantandi frestur er EKKI forleikur.
+  const preSeason = gw1Deadline ? !deadlinePassed(1) : false;
 
   const byId = useMemo(() => {
     const m = {}; (players || []).forEach(p => m[p.id] = p);
@@ -1240,19 +1250,7 @@ export default function App() {
 
      TÓM LEIKJASKRÁ ÁKVEÐUR EKKERT: án leikja er `firstOpenGw` einfaldlega
      1 og taflan hegðar sér eins og áður.                                */
-  const firstOpenGw = useMemo(() => {
-    const byGw = {};
-    for (const f of (fixtures || [])) {
-      if (!f?.event) continue;
-      (byGw[f.event] = byGw[f.event] || []).push(f);
-    }
-    for (let g = 1; g <= maxGw; g++) {
-      const own = byGw[g];
-      if (!own || !own.length) return g;             /* engin gögn -> hér */
-      if (!own.every(fixturePlayed)) return g;
-    }
-    return maxGw;
-  }, [fixtures, maxGw]);
+  const firstOpenGw = useMemo(() => firstOpenGwOf(fixtures, maxGw), [fixtures, maxGw]);
 
   /* tímalínu-glugginn fylgir valdri umferð ef hún fer út fyrir hann.
      ATH: verður að vera EFTIR maxGw — TDZ annars.                          */
@@ -1349,29 +1347,16 @@ export default function App() {
   // Rök: mikið vinnuálag varnar -> fleiri CBIT -> fleiri DefCon-stig.
   // AÐSKILINN mælikvarði frá CS% — þeir draga í gagnstæða átt.
   const dcOpp = useMemo(() => {
-    if (defcon?.opportunity && Object.keys(defcon.opportunity).length) {
-      const m = {};
-      Object.entries(defcon.opportunity || {}).forEach(([tid, o]) => m[tid] = o);
-      return m;
-    }
-    if (!players || !fixtures || !teams) return {};
-    const m = {};
-    teams.forEach(t => {
-      const tid = t.id;
-      const own = teamMetrics[tid]?.xgc90 ?? 1.4;
-      const up = fixtures.filter(f => !f.finished && (f.team_h === tid || f.team_a === tid)).slice(0, recRange);
-      let s = 0;
-      // sóknarstyrkur andstæðinga úr teamMetrics (xG, með nýliða-fallback)
-      up.forEach(f => { const o = f.team_h === tid ? f.team_a : f.team_h; s += (teamMetrics[o]?.xg90 ?? 1.4); });
-      const oa = up.length ? s / up.length : 1.4;
-      m[tid] = {
-        own_xgc90: own, opp_attack_avg: +oa.toFixed(2),
-        defcon_opportunity: clamp(Math.round(own * 22 + oa * 20), 0, 100),
-        fixtures_used: up.length,
-      };
-    });
-    return m;
-  }, [defcon, players, fixtures, teams, teamMetrics, recRange]);
+    /* PIPELINE-TALAN EIN (9.9.2026). Her var varaleid sem endurreiknadi
+       formuluna med `?? 1.4` a BADUM inntokum og `!f.finished` sem klukku —
+       tilbuin xG sem birtist sem "DC57"-pilla i hverri keyrslu thar sem
+       defcon.json vantar (og i hverri data-resilience-atburdaras).
+       fetch.mjs segir sjalft um thessa tolu: "IT IS null, NEVER A
+       SUBSTITUTED CONSTANT". Vanti skrana er reiturinn audur og Data
+       sources ber grau punktinn.                                        */
+    if (!defcon?.opportunity) return {};
+    return { ...defcon.opportunity };
+  }, [defcon]);
 
   /* ---- SAMSETT LEIKJAÞYNGD ----
      MÆLT á 544 lið-leikjum (fyrra tímabil spáir næsta, ekkert leki):
@@ -1411,47 +1396,61 @@ export default function App() {
      að sú mæling segi annað.                                            */
 
 
+  /* `expPoints` ER useCallback OG BYR HER (9.9.2026) — eftir byId,
+     fixByTeamGw, fixDifficulty og basisFor, a undan ollum lesendum
+     (pickBestXi, capRanked, neverBestXi, chipValue, transferNet). Var
+     fall-yfirlysing nedar: hoistud og thvi kallanleg ur
+     useMemo-um ofar, en NY i hverri teikningu, svo capRanked og
+     neverBestXi endurreiknudu i hverri teikningu (sex bestTeamPlan-
+     keyrslur), og chipValue las hana an thess ad telja inntok hennar
+     (playerForm, seasonsFile gegnum basisFor) i deps — svo "best i GW x"
+     gat setid a ep_next-varaleidinni thar til eitthvad oskylt breyttist.
+     Nu ber fallid sin inntok sjalft og lesendur telja ThAD.             */
+  const expPoints = useCallback((pid, g) => {
+    const p = byId[pid];
+    if (!p) return 0;
+    return expPointsFor({ p, fxs: fixByTeamGw[p.team]?.[g] || [],
+      fixDifficulty, teamId: p.team, basis: basisFor(p) });
+  }, [byId, fixByTeamGw, fixDifficulty, basisFor]);
+
   // CS-mat: bókmakarar ef til, annars afleitt úr FDR + xGC (opinber gögn)
-  function csFor(teamId, fx) {
-    const short = teamById[teamId]?.short;
-    const bk = odds && short && odds[short];
-    // Bókmakara-línan gildir AÐEINS um þann leik sem hún var sett fyrir.
-    // Staðfestum gegn mótherja + dagsetningu — annars notum við aðrar heimildir.
-    const bkValid = bk && Number.isFinite(bk.cs) && fx &&
-      teamById[fx.opp]?.short === bk.opp &&
-      (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
-    if (bkValid) return { cs: bk.cs, src: "bookie" };
-    // ClubElo úrslitalíkindi (ókeypis, engin Odds-credit)
-    if (fx?.kickoff) {
-      const key = `${teamId}|${fx.kickoff.slice(0,10)}`;
-      const e = eloCsByFx[key];
-      if (e && Number.isFinite(e.cs)) return { cs: Math.round(e.cs), src: "elo" };
-    }
-    if (!fx) return { cs: null, src: null };
-    /* LÍKINDALÍKAN, EKKI UPPFLETTITAFLA. Var `lookupPos(2,"cs", FFDR)`,
-       sem þjappaði öllu í eitt d á 1–5 kvarða og las 5-punkta töflu.
-       MÆLT á 10.640 lið-leikjum (14 tímabil, LOSO): logistic á inntökin
-       gefur skill 5,94% á móti 3,91%, halla +0,0pp á móti +2,3pp og
-       meðalfrávik 1,1pp á móti 2,3pp. ΔBrier +0,00569 með
-       öryggisbili [+0,00555, +0,00584] — marktækt.
-       Staðfest sjálfstætt: Fable-lota fékk sama form á öðru úrtaki.
-       Sjá cleanSheetProb í model.js og tests/cs-logistic.mjs.          */
-    const me = teamMetrics[teamId], op = teamMetrics[fx.opp];
-    if (me && op) {
-      const myElo = eloByTeam[teamId]?.elo, opElo = eloByTeam[fx.opp]?.elo;
-      const p = cleanSheetProb({
-        ownXgc: me.xgc90, oppXg: op.xg90, home: !!fx.home,
-        eloDiff: (myElo && opElo) ? (opElo - myElo) / 100 : 0,
-        fdr: fx.fdr,
-      });
-      if (Number.isFinite(p)) return { cs: clamp(Math.round(100 * p), 3, 70), src: "probability" };
-    }
-    /* Neyðarvara ef liðstölur vanta alveg (t.d. nýliði án grunnlínu). */
-    const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
-    const raw = lookupPos(2, "cs", d2);
-    if (!Number.isFinite(raw)) return { cs: null, src: null };
-    return { cs: clamp(Math.round(raw), 3, 70), src: "measured" };
-  }
+  /* Kedjan sjalf byr i model.js (`makeCsFor`) og er profud thar; her er
+     adeins tengingin vid state (10.9.2026).                              */
+  const csFor = useMemo(
+    () => makeCsFor({ teamById, odds, eloCsByFx, teamMetrics, eloByTeam, fixDifficulty }),
+    [teamById, odds, eloCsByFx, teamMetrics, eloByTeam, fixDifficulty]);
+  /* HLIDARSTIKAN „Teams — FFDR": bilid og radirnar eru reiknud EINU SINNI
+     per breytingu (10.9.2026). Adur la thetta i IIFE inni i JSX og
+     endurreiknadi 20 lid x span x 2 stodur x fixDifficulty i HVERRI
+     teikningu App — thar med talid vid hvern staf i leitarreitnum.     */
+  const ffdrFrom = ffdrRange ? ffdrRange[0] : gw;
+  const ffdrTo   = ffdrRange ? ffdrRange[1] : Math.min(gw + recRange - 1, maxGw);
+  const ffdrRows = useMemo(() => {
+    // meðal-FFDR yfir valið bil, per staða
+    const avg = (tid, pos) => {
+      let n = 0, sum = 0;
+      for (let g = ffdrFrom; g <= ffdrTo; g++) {
+        for (const fx of (fixByTeamGw[tid]?.[g] || [])) {
+          const d = fixDifficulty(tid, fx, pos);
+          if (d != null) { sum += d; n++; }
+        }
+      }
+      return n ? +(sum / n).toFixed(2) : null;
+    };
+    /* FJOLDI LEIKJA i bilinu — AUD UMFERD er sleppt ur medaltalinu (hun
+       hefur engan leik ad meta), svo lid med blank litur LETTARA ut en
+       thad er. Kafli 3d telur auda umferd ThYNGST i roteringu; hér er hun
+       ad minnsta kosti SYNILEG.                                         */
+    const nFix = tid => {
+      let k = 0;
+      for (let g = ffdrFrom; g <= ffdrTo; g++) k += (fixByTeamGw[tid]?.[g] || []).length;
+      return k;
+    };
+    const rows = (teams || []).map(t => ({ t, def: avg(t.id, 2), att: avg(t.id, 4), n: nFix(t.id) }));
+    const k = teamSort === "att" ? "att" : "def";
+    rows.sort((a, b) => (a[k] ?? 9) - (b[k] ?? 9));
+    return rows;
+  }, [teams, fixByTeamGw, fixDifficulty, ffdrFrom, ffdrTo, teamSort]);
   // Vænt mörk á sig
   /* `xgaFor` VAR HER OG ER FARID (11.8.2026): reiknadi vaent mork a sig fyrir
      lid i leik (markadslina, annars maelda FDR-taflan) og var thraett sem
@@ -1592,11 +1591,7 @@ export default function App() {
          (CLAUDE.md kafli 8). `objOfArr` i `loadState` ver thetta thegar,
          en hér er lykla-svidid skannad ALLT (1..g) og ekki einn lykill,
          svo thad ma ekki treysta a thad.                              */
-      let k = 0;
-      for (let j = 1; j <= g; j++) {
-        const l = benchSwaps[j];
-        if (Array.isArray(l) && l.length > 0) k = j;
-      }
+      const k = lastBenchKey(benchSwaps, g);
       if (k) benchSwaps[k].forEach(pair => {
         if (!Array.isArray(pair)) return;
         const [aId, bId] = pair;
@@ -1748,14 +1743,7 @@ export default function App() {
     let firstOpen = gw;
     while (firstOpen <= maxGw && deadlinePassed(firstOpen)) firstOpen++;
     const fFrom = Math.max(1, firstOpen), fTo = Math.min(maxGw, fFrom + WIN - 1);
-    const keyAt = g => {
-      let k = 0;
-      for (let j = 1; j <= g; j++) {
-        const l = benchSwaps[j];
-        if (Array.isArray(l) && l.length > 0) k = j;
-      }
-      return k;
-    };
+    const keyAt = g => lastBenchKey(benchSwaps, g);
     const fGws = [];
     for (let g = fFrom; g <= fTo; g++) fGws.push(g);
     const keys = fGws.map(keyAt);
@@ -1887,7 +1875,7 @@ export default function App() {
   const buyOf = (id) => {
     // FYRIR TÍMABIL: verð hreyfast ekki og skipti eru ótakmörkuð.
     // Kaupverð læsist ekki fyrr en GW1-frestur -> notum núverandi verð.
-    if (preSeasonRef.current) return byId[id]?.now_cost ?? 0;
+    if (preSeason) return byId[id]?.now_cost ?? 0;
     // ekki enn keyptur -> ekkert kaupverð, notum núverandi
     if (!officialIds.has(id)) return byId[id]?.now_cost ?? 0;
     /* GILDID SJALFT ER ThVINGAD, EKKI BARA YTRI GERDIN.
@@ -1934,12 +1922,12 @@ export default function App() {
     for (const tr of planFold.applied)
       tenths += sellOf(tr.outId) - (byId[tr.inId]?.now_cost ?? 0);
     return +(tenths / 10).toFixed(1);
-  }, [players, squadOverride, apiBank, planFold, gw, byId, buyPrices]);
+  }, [players, squadOverride, apiBank, planFold, gw, byId, buyPrices, preSeason]);
 
   // Liðsverð = summa SÖLUVERÐA (það sem þú fengir ef þú seldir allt)
   const squadValue = useMemo(() =>
     +(squadAt.reduce((a, s) => a + sellOf(s.id), 0) / 10).toFixed(1),
-    [squadAt, byId, buyPrices]);
+    [squadAt, byId, buyPrices, preSeason]);
 
   const starters = squadAt.filter(s => s.starter).sort((a,z) => a.order - z.order);
   // BEKKUR: markmaður ALLTAF lengst til vinstri (eins og FPL), svo röð.
@@ -2101,15 +2089,10 @@ export default function App() {
      FYLKJUM af PORUM.                                                   */
   function appendBenchSwaps(pairs) {
     setBenchSwaps(bs => {
-      const mine = Array.isArray(bs[gw]) && bs[gw].length > 0 ? bs[gw] : null;
-      let own = mine;
-      if (!own) {
-        own = [];
-        for (let j = gw - 1; j >= 1; j--) {
-          const l = bs[j];
-          if (Array.isArray(l) && l.length > 0) { own = l; break; }
-        }
-      }
+      /* Eigin listi umferdarinnar ef hann er til, annars sa erfdi — SAMA
+         fall sem squadForGw og keyAt lesa (lastBenchKey).                */
+      const k = lastBenchKey(bs, gw);
+      const own = k ? bs[k] : [];
       return { ...bs, [gw]: [...own, ...pairs] };
     });
   }
@@ -2540,8 +2523,12 @@ export default function App() {
   }, [imminent]);
   const netByPlayer = useMemo(() => {
     const m = {};
+    /* NETTO UR DALKASKRANNI (null-oruggt): `(in || 0) - (out || 0)` bjo
+       til 0 thegar BADI svidin vantadi — nakvaemlega `?? 0`-mynstrid sem
+       CLAUDE.md kafli 12 nefnir fyrir net_transfers_event. `priceMovers`
+       les thessa somu toflu i stad thess ad reikna hana aftur.          */
     for (const p of players || []) {
-      m[p.id] = { net: (p.transfers_in_event || 0) - (p.transfers_out_event || 0),
+      m[p.id] = { net: STAT_BY_KEY.net_transfers_event.get(p),
                   chg: p.cost_change_event || 0 };
     }
     return m;
@@ -2606,7 +2593,7 @@ export default function App() {
       /* startProbability tekur `start_feats` sem pipeline reiknar (5 umferda
          gluggi). Vantar hann -> null, EKKI 0: "engin gogn" og "spilar ekki"
          eru ekki sama hlutid.                                             */
-      startP: im?.start_feats ? startProbability(im.start_feats) : null,
+      startP: startPOf(p),
       /* mo/ao gilda ADEINS i markhopnum (0-1 framlag, 180+ min). Fyrir adra
          er talan ekki "lag" heldur EKKI TIL — thess vegna null.
 
@@ -2622,7 +2609,7 @@ export default function App() {
       predict: priceMovePrediction({ net: nb.net, selectedByPct: p.selected_by_percent,
                                      chg: nb.chg }),
     };
-  }, [immIdx, teamById, netByPlayer, ffdrAhead]);
+  }, [immIdx, teamById, netByPlayer, ffdrAhead, startPOf]);
 
   const searchResults = useMemo(() => {
     const ranked = (() => {
@@ -2642,16 +2629,17 @@ export default function App() {
       const hay = `${p.web_name} ${p.first_name} ${p.second_name} ${t?.name || ""} ${t?.short || ""}`
         .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return hay.includes(q);
-    }).sort((a, b) => {
+    }).map(p => ({ p, f: selling ? ffdrAhead(p) : 0 }))   // FFDR EINU SINNI per mann, ekki per samanburd
+    .sort((a, b) => {
       /* Í ÚTSKIPTINGU: raða eftir FFDR næstu 5 umferðir — LÉTTAST EFST.
          Það er spurningin sem verið er að svara: hver á bestu leikina? */
       if (selling) {
-        const d = ffdrAhead(a) - ffdrAhead(b);
+        const d = a.f - b.f;
         if (Math.abs(d) > 0.005) return d;
       }
-      return parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0)
-          || (b.total_points || 0) - (a.total_points || 0);
-    });
+      return parseFloat(b.p.ep_next || 0) - parseFloat(a.p.ep_next || 0)
+          || (b.p.total_points || 0) - (a.p.total_points || 0);
+    }).map(x => x.p);
     })();
     /* ThAKID ER SAGT A SKJANUM, EKKI ThAGAD (lagad 25.8.2026).
        Hér stod bert `.slice(0, 120)`. Reglan er skrifud i thessari SOMU
@@ -2813,26 +2801,17 @@ export default function App() {
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
   const priceMovers = useMemo(() => {
     if (!players) return { up:[], down:[] };
-    const withNet = players.map(p => {
-      const net = (p.transfers_in_event || 0) - (p.transfers_out_event || 0);
-      const chg = p.cost_change_event || 0;
-      return { p, net, chg,
-        predict: priceMovePrediction({ net, selectedByPct: p.selected_by_percent, chg }) };
+    const withNet = players.flatMap(p => {
+      const { net, chg } = netByPlayer[p.id] || {};
+      if (!Number.isFinite(net)) return [];   // vantandi flutningar eru ekki 0
+      return [{ p, net, chg,
+        predict: priceMovePrediction({ net, selectedByPct: p.selected_by_percent, chg }) }];
     });
     const up = withNet.filter(x => x.net > 0).sort((a,b) => b.net - a.net).slice(0, 8);
     const down = withNet.filter(x => x.net < 0).sort((a,b) => a.net - b.net).slice(0, 6);
     return { up, down };
-  }, [players]);
+  }, [players, netByPlayer]);
 
-  /* ---------- FYRIR TÍMABIL ----------
-     Verð hreyfast ekki og skipti eru ótakmörkuð og frí þar til GW1-frestur
-     rennur út. Kaupverð læsist því EKKI fyrr en þá — 50%-hagnaðarreglan er
-     óviðkomandi á meðan (enginn hagnaður til að deila).                     */
-  const gw1Deadline = events?.find(e => e.id === 1)?.deadline_time || null;
-  // SAMA KLUKKA og `deadlinePassed` (skilgreind ofar) — ekki tvo svor vid
-  // sömu spurningu. `gw1Deadline ? … : false` heldur gomlu merkingunni:
-  // vantandi frestur er EKKI forleikur.
-  const preSeason = gw1Deadline ? !deadlinePassed(1) : false;
   /* HVAÐAN eru uppsöfnuðu tölurnar? Fyrir tímabil: allar frá SÍÐASTA
      tímabili (t.d. "2025/26"), reiknað úr GW1-frestinum svo merkið sé
      alltaf rétt ártal. Eftir að umferðir klárast: "GW1–N". Þetta merki
@@ -2862,7 +2841,7 @@ export default function App() {
      `startedGameweeks` vaeri RANGT hér — thad telur umferd sem er I
      GANGI med, og uppsofnudu tolurnar innihalda hana ekki fyrr en
      leikurinn er buinn.                                             */
-  const cumPlayed = Math.max(0, ...Object.values(playedByClub || {}));
+  const cumPlayed = seasonGames;
   const cumLabel = seasonStarted ? `GW1–${cumPlayed}` : prevSeasonLabel;
   /* HEITI YFIRSTANDANDI TIMABILS — annad en cumLabel!
      cumLabel merkir "hvada timabil eiga tolurnar i players.json vid" og er
@@ -2900,7 +2879,6 @@ export default function App() {
 
   // TÍMABIL BYRJAÐ = einhver umferð lokin. Þangað til eru allar uppsöfnuðu
   // tölur í players.json frá SÍÐASTA tímabili (spjöld, mínútur, stig).
-  preSeasonRef.current = preSeason;
 
   /* ---------- VÆNT STIG per umferð ----------
      Byggt á opinberum gögnum: stig/leik (sl. tímabil) leiðrétt fyrir
@@ -2913,12 +2891,6 @@ export default function App() {
        grunnur  = leikmanns-stig, óháð umferð (ep_next ef til, annars stig/leik)
        margfaldari = MÆLD stig við hans FFDR / meðaltal stöðunnar
      Þar með er kvarðinn festur við FPL-spána og aðeins LEIKURINN breytist.  */
-  function expPoints(pid, g) {
-    const p = byId[pid];
-    if (!p) return 0;
-    return expPointsFor({ p, fxs: fixByTeamGw[p.team]?.[g] || [],
-      fixDifficulty, teamId: p.team, basis: basisFor(p) });
-  }
   // Nettó ávinningur skipta: vænt stig inn − út yfir sjóndeildarhring, mínus
   // refsing. FH-skipti gilda AÐEINS í sinni umferð — ávinningurinn líka.
   /* ÁÆTLUNIN SKIPTIST Í TVENNT OG SKILYRÐIÐ ER EITT (sjá `isInitialSquadPick`
@@ -3068,7 +3040,7 @@ export default function App() {
     // `fhGws`, en their eru latnir standa: eftirlitid (`react-hooks/exhaustive
     // -deps`) er ekki i keyrslu hér og skra sem missir hann thegjandi er
     // versta utkoman (sbr. `fixDifficulty`-atvikid i athugasemdinni ofar).
-  }, [squadForGw, players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, fixDifficulty, fhGws]);
+  }, [squadForGw, players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, fixDifficulty, fhGws, expPoints]);
 
   // besta umferð fyrir hvert chip innan gildistíma
   const bestGwFor = (name, from, to) => {
@@ -3102,11 +3074,6 @@ export default function App() {
      `is_current` DUGAR EKKI OG MA EKKI NOTA: umferd i GANGI er
      `is_current` en er ekki spilud, og "finished" a henni vaeri jafn
      rangt og "not started" er i dag — bara i hina attina.            */
-  const evPlayed = useMemo(() => {
-    if (ev?.finished) return true;
-    const own = (fixtures || []).filter(f => f.event === gw);
-    return own.length > 0 && own.every(fixturePlayed);
-  }, [ev, fixtures, gw]);
   /* ============================================================
      ThRIDJA ASTANDID: UMFERD I GANGI — OG ThAD VANTADI (28.8.2026)
 
@@ -4212,7 +4179,7 @@ export default function App() {
                 </span>
               </div>
               <div style={S.muted}>
-                {"Gain = expected points (points/match + FDR, FPL ep_next for the next gameweek) over 5 gameweeks. The hit is subtracted. An estimate, not a certainty."}
+                {"Gain = expected points (his base points per match × the FFDR multiplier) over 5 gameweeks. The hit is subtracted. An estimate, not a certainty."}
               </div>
               </>)}
               {/* ============================================================
@@ -4415,7 +4382,7 @@ export default function App() {
                         )}
                       </span>
                       <span style={S.planPickEp}
-                        title={"His OWN expected points in GW1 (minutes + FFDR + form). Not a comparison with anyone — in GW1 nobody is being sold."}>
+                        title={"His OWN expected points in GW1 (base points per match × the FFDR multiplier). Not a comparison with anyone — in GW1 nobody is being sold."}>
                         {ep == null ? "—" : `ep ${ep.toFixed(1)}`}
                       </span>
                       <button style={S.rm} onClick={() => removeTransfer(plan.indexOf(t))}>✕</button>
@@ -4504,8 +4471,6 @@ export default function App() {
 
           {/* Lið: FFDR-röðun + DefCon (það eina sem er EKKI í FFDR) */}
           {(() => {
-          const ffdrFrom = ffdrRange ? ffdrRange[0] : gw;
-          const ffdrTo   = ffdrRange ? ffdrRange[1] : Math.min(gw + recRange - 1, maxGw);
           return (
           <section style={S.card}>
             <div style={S.recHead}>
@@ -4568,34 +4533,8 @@ export default function App() {
               <span style={S.tblN} title={"How many fixtures the team actually has in the range. A BLANK is skipped by the average, so a run with fewer fixtures can look easier than it is — this number makes that visible."}>{"n"}</span>
             </div>
             {(() => {
-              // meðal-FFDR yfir valið bil, per staða
-              const avg = (tid, pos) => {
-                let n = 0, sum = 0;
-                for (let g = ffdrFrom; g <= ffdrTo; g++) {
-                  for (const fx of (fixByTeamGw[tid]?.[g] || [])) {
-                    const d = fixDifficulty(tid, fx, pos);
-                    if (d != null) { sum += d; n++; }
-                  }
-                }
-                return n ? +(sum / n).toFixed(2) : null;
-              };
-              /* FJOLDI LEIKJA i bilinu — AUD UMFERD er sleppt ur medaltalinu
-                 (hun hefur engan leik ad meta), svo lid med blank litur
-                 LETTARA ut en thad er. Kafli 3d telur auda umferd ThYNGST
-                 i roteringu; hér er hun ad minnsta kosti SYNILEG.        */
-              const nFix = tid => {
-                let k = 0;
-                for (let g = ffdrFrom; g <= ffdrTo; g++) k += (fixByTeamGw[tid]?.[g] || []).length;
-                return k;
-              };
+              const rows = ffdrRows;
               const span = ffdrTo - ffdrFrom + 1;
-              const rows = teams.map(t => ({
-                t, def: avg(t.id, 2), att: avg(t.id, 4), n: nFix(t.id),
-              }));
-              rows.sort((a, b) => {
-                const k = teamSort === "att" ? "att" : "def";
-                return (a[k] ?? 9) - (b[k] ?? 9);
-              });
               return rows.map(({ t, def, att, n }) => {
                 const mine = squadAt.some(x => byId[x.id]?.team === t.id);
                 const cell = v => v == null ? { bg:"transparent", fg:C.text3 }
@@ -5580,16 +5519,12 @@ export default function App() {
                    med solu i naesta skrefi.                             */
                 let block = null;
                 let overdraft = null;
-                if (selling) {
-                  const after = squadAt.map(x => (x.id === selling ? p.id : x.id));
-                  if (after.filter(id => byId[id]?.team === p.team).length > 3) block = "3 per club";
-                  if (bank + diff < 0) overdraft = +(bank + diff).toFixed(1);
-                }
+                const after = squadAt.map(x => (x.id === selling ? p.id : x.id));
+                if (after.filter(id => byId[id]?.team === p.team).length > 3) block = "3 per club";
+                if (bank + diff < 0) overdraft = +(bank + diff).toFixed(1);
                 return (
                   <button key={p.id}
-                    onClick={() => selling
-                      ? commitTransfer(selling, p.id)
-                      : (setSearchQ(""), setDetail({ kind:"player", id:p.id }))}
+                    onClick={() => commitTransfer(selling, p.id)}
                     style={{ ...S.sItem, ...(block ? S.sItemBlocked : {}) }}
                     title={block ? interp("Illegal: {0}", [block]) : ""}>
                     <div style={S.sPortrait}>
@@ -5606,7 +5541,7 @@ export default function App() {
                         {setPieceOf(p, spRanks)?.isPenTaker && <span style={S.sPen} title={"First penalty taker (updated daily from FPL)"}>PEN</span>}
                       </div>
                       <div style={S.sMeta}>
-                        {t?.short} · {POS_LABEL[p.element_type]} · ep {p.ep_next}
+                        {t?.short} · {POS_LABEL[p.element_type]} · FPL ep_next {p.ep_next ?? "—"}
                         {fx ? ` · ${oppLabel(teamById[fx.opp]?.short, fx.home)}` : ""}
                       </div>
                       {/* MAELDU TOLURNAR. Rodin er ASETT: byrjunar-likur
@@ -5661,8 +5596,8 @@ export default function App() {
                       })()}
                     </div>
                     <div style={{ textAlign:"right" }}>
-                      <div style={S.sPrice}>£{(p.now_cost/10).toFixed(1)}</div>
-                      {selling && (block
+                      <div style={S.sPrice}>{fmtPrice(p.now_cost)}</div>
+                      {(block
                         ? <div style={S.sBlock}>{block}</div>
                         : <>
                             <div style={{ ...S.sDiff, color: diff >= 0 ? C.green : C.red }}>
@@ -6347,7 +6282,7 @@ function RecCard({ r, team, teamById, dc, elo, csFor, diffOf, range, onAdd }) {
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={S.recName}>{p.web_name}</div>
-          <div style={S.recMeta}>{team?.short} · £{(p.now_cost/10).toFixed(1)} · ep {p.ep_next}</div>
+          <div style={S.recMeta}>{team?.short} · {fmtPrice(p.now_cost)} · FPL ep_next {p.ep_next ?? "—"}</div>
         </div>
         <div style={S.recScore}>{r.score}</div>
       </div>
