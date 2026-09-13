@@ -75,7 +75,7 @@
    Keyrsla:  node scripts/validate-data.mjs        (0 = ma committa)
              node scripts/validate-data.mjs --json <slod>
    ============================================================ */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync } from "node:fs";
 import { isInvokedDirectly } from "./invoked.mjs";
 import { readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
@@ -238,7 +238,25 @@ const SOURCE_RESET = [
      hlidid hefdi hafnad hverju dagskommiti thar til einhver greip inn i
      (10.9.2026). Negld a skra OG svid eins og hinar.                    */
   [/^weather\.json$/, /^fixtures(\.|$)/],
+  /* FELAG DETTUR UT UR `by_team` ThEGAR SIDASTI BIKARLEIKUR ThESS ER BUINN
+     (13.9.2026). `fetchEuro` sleppir leikjum sem eru lidnir (`date < today`),
+     svo klubbur sem atti EINN leik — deildarbikarinn 8.-9.9. hja CHE, HUL, LEE
+     og NEW — a engan lykil daginn eftir. Hlidid las thad sem „DISAPPEARED"
+     og HAFNADI DAGSKOMMITINU I FIMM DAGA (9.-13.9.) — imminent, team_form,
+     luck, defcon og status.json stodu i 8.9. a medan. Dagatal, ekki gagnatap;
+     `fixtures` (heildin) lytur afram fullri reglu og ma ekki fara i 0.     */
+  [/^euro_fixtures\.json$/, /^by_team\.\d+$/],
 ];
+/* Skrifar data/gate.json atomiskt (tmp + rename, eins og writeJSON). Utflutt
+   svo profid geti skrifad i tilbuna moppu.                                */
+export function writeGate(rec, dir = DATA) {
+  const p = `${dir}/gate.json`;
+  const body = JSON.stringify({ updated: new Date().toISOString(), ...rec }, null, 1);
+  writeFileSync(p + ".tmp", body);
+  renameSync(p + ".tmp", p);
+  return p;
+}
+
 export function regressions(nowObj, headObj, name = "file") {
   const out = [];
   const now = counts(nowObj), was = counts(headObj);
@@ -370,6 +388,20 @@ console.log(`validate-data: ${files.length} files, ${parsed} parsed, `
   + `${compared} compared against HEAD · ${subParsed} more parsed in `
   + `${SUBDIRS.join("/, ")}/`);
 for (const n of notes) console.log(`  ·    ${n}`);
+/* ============================================================
+   HOFNUN SEM ENGINN SER ER HOFNUN SEM STENDUR I FIMM DAGA (13.9.2026)
+   ============================================================
+   Hlidid hafnadi dagskommitinu 9.-13.9.2026 (by_team-lyklar hurfu af
+   dagatalsastaedu) og EKKERT i appinu gat synt thad: status.json er
+   sjalf hluti af snapshotinu sem var hafnad, svo hun stod i 8.9. og
+   „Data sources" las eins og allt vaeri i lagi — bara gamalt. Hlidid
+   skrifar thvi eigin rod, `data/gate.json`, i BADUM tilfellum, og
+   vinnuskrarnar committa HANA EINA thegar snapshotinu er hafnad.
+   ADEINS SKALARAR i skranni (ok, n_problems, problems_text): `counts()`
+   telur fylki og hluti, svo skra sem ber vandamalalista sem fylki hefdi
+   sjalf fellt naesta hlid thegar listinn for ur N i 0.               */
+writeGate({ ok: !problems.length, n_problems: problems.length,
+            problems_text: problems.slice(0, 6).join(" | ").slice(0, 600) });
 if (!problems.length) { console.log("  OK   snapshot is safe to commit"); process.exit(0); }
 console.log(`\n  ${problems.length} PROBLEM(S) — REFUSING THE COMMIT:`);
 for (const p of problems) console.log(`  ✗    ${p}`);

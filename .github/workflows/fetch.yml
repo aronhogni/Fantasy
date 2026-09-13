@@ -97,6 +97,30 @@ jobs:
       - name: Hlid - sannreyna snapshot fyrir commit
         run: node scripts/validate-data.mjs
 
+      # HOFNUN HLIDSINS ER COMMITTUD SEM EIN SKRA (13.9.2026). Hafni hlidid er
+      # snapshotid EKKI committad — en `data/gate.json` (sem hlidid skrifadi) er
+      # thad, svo appid geti synt „daily commit refused since X: why" i stad
+      # thess ad standa thegjandi a gomlum gognum i fimm daga. Hafnada
+      # snapshotid er fleygt ur vinnutrenu adur en rebase-ad er.
+      - name: Skra hofnun hlidsins
+        if: failure()
+        run: |
+          set -uo pipefail
+          [ -f data/gate.json ] || exit 0
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          cp data/gate.json /tmp/gate.json
+          git checkout -- data && git clean -fdq data
+          cp /tmp/gate.json data/gate.json
+          git add data/gate.json
+          git diff --staged --quiet && exit 0
+          git commit -m "gate: commit refused $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            git pull --rebase -X theirs origin main && git push origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
+
       - name: Committa ef eitthvað breyttist
         run: |
           set -uo pipefail

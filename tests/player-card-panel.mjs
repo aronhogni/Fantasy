@@ -205,9 +205,14 @@ console.log("\n--- A. St%-HLIDID ---");
      committudum gognum. Tilbuinn heimur (GW1-3 leiknar) er thvi smiðadur
      hér: an hans vaeri hlidid oprofad i thá att sem SYNIR toluna, og
      stokkbreyting sem slekkur a reitnum ALLTAF slyppi i gegn.          */
+  /* OG ALLT EFTIR GW3 ER OLEIKID I TILBUNA HEIMINUM (13.9.2026). Fyrsta
+     utgafan let radir med event > 3 standa eins og thaer eru i skranni — og
+     um leid og GW4 var raunverulega leikin taldi appid 4 leiki medan profid
+     reiknadi med 3 ("3/3" a moti "3/4"). Heimur sem er adeins halfur
+     tilbuinn er ekki tilbuinn.                                          */
   const FIX3 = FIX.map(f => (f.event != null && f.event <= 3
-    ? { ...f, finished_provisional: true, team_h_score: 1, team_a_score: 1 }
-    : f));
+    ? { ...f, finished: false, finished_provisional: true, started: true, team_h_score: 1, team_a_score: 1 }
+    : { ...f, finished: false, finished_provisional: false, started: false, team_h_score: null, team_a_score: null }));
   const enoughId = squad.find(p => +p.minutes > 0 && rotOf(p, 3)?.level !== "low");
   ok(!!enoughId, "forsenda: einhver i proflidinu faer tolu thegar felagid hefur spilad thrjá");
   const v2 = await mount({ captain: 411 }, { patch: { "fixtures.json": FIX3 } });

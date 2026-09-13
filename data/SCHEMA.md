@@ -1560,3 +1560,15 @@ staðar í þessu repo-i. Vörður: `tests/pros.mjs` kafli 13.
 bætir **engu** ofan á `ep_next` (r = −0,0005) og er **neikvæð** meðal þeirra
 sem spiluðu í raun (−0,111). Hvort þessi hópur sé öðruvísi er ómælt þar til
 ~10 umferðir liggja fyrir.
+
+
+### `gate.json` (13.9.2026)
+```
+{ updated, ok, n_problems, problems_text }
+```
+Skrifuð af `scripts/validate-data.mjs` í **báðum** tilfellum og committuð **ein**
+þegar hliðið hafnar snapshotinu (skrefið „Skra hofnun hlidsins" í báðum
+vinnuskrám). Aðeins skalarar: `counts()` í hliðinu telur fylki og hluti, svo
+vandamálalisti sem fylki hefði fellt næsta hlið þegar hann fór úr N í 0.
+Appið les hana í „Data sources" — rauð röð yfir alla breiddina meðan `ok` er
+false, því hver önnur röð þar les þá gamla stöðu.

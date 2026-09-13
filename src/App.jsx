@@ -457,6 +457,11 @@ export default function App() {
   const [eloFx, setEloFx] = useState(null);
   const [euroFx, setEuroFx] = useState(null);
   const [pipeStatus, setPipeStatus] = useState(null);
+  /* data/gate.json — skrifud af commit-hlidinu i BADUM tilfellum og committud
+     EIN thegar snapshotinu er hafnad (13.9.2026). Eina leidin til ad sja ad
+     dagskeyrslan hefur ekki komist i gegn i N daga; status.json sjalf er
+     hluti af hafnada snapshotinu.                                       */
+  const [gate, setGate] = useState(null);
   const [dataState, setDataState] = useState("loading");
   const [odds, setOdds] = useState(null);
   const [oddsState, setOddsState] = useState("idle");
@@ -641,6 +646,7 @@ export default function App() {
           ["bsd_live.json",          setBsdLive],
           ["player_form.json",       setPlayerForm],
           ["status.json",            setPipeStatus],
+          ["gate.json",              setGate],
           /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
              Thar med voru ALLAR heimildir hradar keyrslunnar osynilegar i
              hlidarstikunni — thar a medal api_lineups. Vordur i profi.     */
@@ -4772,8 +4778,24 @@ export default function App() {
           "birtist undir Data sources"; hun var osonn thangad til nuna.     */}
       <footer style={{ marginTop:18, paddingTop:12, borderTop:`1px solid ${C.border}` }}>
         <h2 style={{ ...S.h2, marginBottom:6 }}>{"Data sources"}</h2>
+        {/* HLIDID FYRST OG YFIR ALLA BREIDDINA thegar thad hafnar: hver onnur rod
+            her ad nedan les tha GAMLA stodu, og thad er thetta sem skyrir hvers
+            vegna. Graen einnar-linu rod thegar thad stodst.                   */}
+        {gate && gate.ok === false && (
+          <div style={{ ...S.srcRow, color: C.red, fontWeight: 600 }}
+               title={String(gate.problems_text || "")}>
+            <span style={S.dotErr} />
+            {"Commit gate REFUSED the daily snapshot"} {gate.updated ? interp("at {0}", [fmtClock(gate.updated)]) : ""}
+            {" — every row below may be stale. "}{String(gate.problems_text || "").slice(0, 160)}
+          </div>
+        )}
         <div style={{ display:"grid", gap:"0 18px",
                       gridTemplateColumns:"repeat(auto-fill, minmax(270px, 1fr))" }}>
+          {gate && gate.ok === true && (
+            <div style={S.srcRow} title={"scripts/validate-data.mjs — refuses a snapshot with invalid JSON, a wrong club count or a field that went to 0"}>
+              <span style={S.dotOk} />{"Commit gate — passed"} {gate.updated ? fmtClock(gate.updated) : ""}
+            </div>
+          )}
           <div style={S.srcRow}><span style={S.dotOk} />FPL bootstrap — {players.length} {"players,"} {teams.length} {"teams"}</div>
           <div style={S.srcRow}>
             <span style={news ? S.dotOk : S.dotWait} />

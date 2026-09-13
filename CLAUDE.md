@@ -481,6 +481,13 @@ theirs` í `data/` (endurmyndað í heild). Vörður `workflow-push.mjs`.
 **Hliðið fyrir commit** (`scripts/validate-data.mjs`) hafnar ógildu JSON,
 `teams.json` ≠ 20 félög og **afturför í null**; keyrir í báðum vinnuskrám, á
 undan commit, án `continue-on-error`. Undirmöppur eru þáttaðar.
+**Dagatals-drifin svið eru undanþegin á skrá OG sviði** (`SOURCE_RESET`):
+`news.price_changes`, `lineups.probe`, `weather.fixtures`, `euro_fixtures.by_team.<id>`
+— sú síðasta stöðvaði dagskommitið 9.–13.9.2026 þegar fjögur félög luku sínum
+eina bikarleik. **Höfnun er committuð sem ein skrá, `data/gate.json`**
+(skalarar einir, svo hliðið geti ekki fellt hana sjálft), og Data sources
+sýnir rauða röð meðan hún stendur — status.json sjálf er hluti af hafnaða
+snapshotinu og getur ekki sagt frá.
 
 **`season_baseline.json` er skrifað aðeins fyrir fyrsta leik** og **aldrei
 verri skrá ofan á betri** (`seasonBaselineDecision`, hreint). FPL nullstillir

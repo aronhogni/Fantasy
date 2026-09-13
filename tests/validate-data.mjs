@@ -17,7 +17,9 @@
    Keyrsla:  node tests/validate-data.mjs
    ============================================================ */
 import { readFileSync } from "node:fs";
-import { counts, regressions } from "../scripts/validate-data.mjs";
+import { counts, regressions, writeGate } from "../scripts/validate-data.mjs";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { bsdOddsNote } from "../scripts/fetch.mjs";
 
 let pass = 0, fail = 0;
@@ -243,6 +245,54 @@ console.log("\n=== 4. UNDIRMOPPUR ERU LESNAR (gatid sem hausinn nefndi) ===");
     ok(new RegExp(`"${d}"`).test(src), `${d}/ er i honum`);
   ok(/JSON\.parse\(readFileSync\(`\$\{DATA\}\/\$\{dir\}/.test(src),
      "og skrarnar eru RAUNVERULEGA thattadar, ekki bara taldar");
+}
+
+/* ---- euro_fixtures.by_team.<id>: klubbur dettur ut thegar bikarleikur er buinn ----
+   RAUNTILFELLID sem stodvadi dagskommitid 9.-13.9.2026: CHE/HUL/LEE/NEW attu
+   EINN deildarbikarleik 8.-9.9., stale-sian sleppti honum daginn eftir og
+   lyklarnir hurfu. Dagatal, ekki gagnatap — en `fixtures` (heildin) lytur
+   afram fullri reglu.                                                     */
+console.log("\n=== euro_fixtures: by_team.<id> ma hverfa, fixtures ekki ===");
+{
+  const head = { updated: "a", fixtures: [1, 2, 3], by_team: { 6: [1], 11: [1], 13: [1, 2] } };
+  const now  = { updated: "b", fixtures: [3], by_team: { 13: [2] } };
+  ok(regressions(now, head, "euro_fixtures.json").length === 0,
+     "klubbur an bikarleiks framundan dettur ut ur by_team an thess ad hlidid hafni");
+  ok(regressions({ ...now, fixtures: [] }, head, "euro_fixtures.json").some(m => /fixtures/.test(m)),
+     "en fixtures 3 -> 0 er afram hafnad");
+  ok(regressions({ updated: "b", fixtures: [1], by_team: {} }, head, "euro_fixtures.json").some(m => /by_team/.test(m)),
+     "og by_team i HEILD (0 klubbar) er afram hafnad — undanthagan er a stokum lykli");
+}
+
+/* ---- gate.json: hofnun sem er committud, og sem hlidid getur ekki fellt sjalft ----
+   9.-13.9.2026 hafnadi hlidid i fimm daga og ekkert i appinu gat synt thad.
+   Skrain er skalarar EINIR — annars hefdi vandamalalisti sem fer ur N i 0
+   fellt naesta hlid (`counts` telur fylki og hluti).                        */
+console.log("\n=== gate.json — skrifud i badum tilfellum, adeins skalarar ===");
+{
+  const dir = mkdtempSync(tmpdir() + "/gate-");
+  const p = writeGate({ ok: false, n_problems: 2, problems_text: "a | b" }, dir);
+  const refused = JSON.parse(readFileSync(p, "utf8"));
+  ok(refused.ok === false && refused.n_problems === 2 && /a \| b/.test(refused.problems_text) && !!refused.updated,
+     "hofnun skrifud med updated/ok/n_problems/problems_text");
+  ok(Object.keys(counts(refused)).length === 0, "counts() telur EKKERT i henni (engin fylki, engir hlutir)");
+  writeGate({ ok: true, n_problems: 0, problems_text: "" }, dir);
+  const passed = JSON.parse(readFileSync(p, "utf8"));
+  ok(regressions(passed, refused, "gate.json").length === 0 && regressions(refused, passed, "gate.json").length === 0,
+     "hofnun -> stodst -> hofnun fellir hlidid ekki i hvoruga att");
+  ok(!readFileSync(p, "utf8").includes(".tmp") && !require_exists(p + ".tmp"), "tmp-skrain er endurnefnd, ekki skilin eftir");
+  function require_exists(f) { try { readFileSync(f); return true; } catch { return false; } }
+  const src = readFileSync(new URL("../scripts/validate-data.mjs", import.meta.url), "utf8");
+  const tail = src.slice(src.indexOf("writeGate({ ok: !problems.length"));
+  ok(/writeGate\(\{ ok: !problems\.length/.test(src) && /process\.exit\(0\)/.test(tail) && /process\.exit\(1\)/.test(tail),
+     "hlidid skrifar gate.json ADUR en thad velur milli exit 0 og exit 1");
+  for (const f of ["fetch.yml", "fetch-fast.yml"]) {
+    const y = readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), "utf8");
+    const i = y.indexOf("Skra hofnun hlidsins");
+    const step = i < 0 ? "" : y.slice(i, y.indexOf("- name:", i + 10) > 0 ? y.indexOf("- name:", i + 10) : undefined);
+    ok(i > 0 && /if: failure\(\)/.test(step) && /git add data\/gate\.json/.test(step) && /git checkout -- data/.test(step),
+       `${f}: hofnunar-skrefid keyrir vid bilun, committar gate.json EINA og fleygir hafnada snapshotinu`);
+  }
 }
 
 console.log(`\nHLID-FYRIR-COMMIT: ${pass} stodust, ${fail} fellu`);

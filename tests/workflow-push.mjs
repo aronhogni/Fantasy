@@ -36,8 +36,12 @@ console.log("=".repeat(84));
 function extractBlock(file) {
   const src = readFileSync(new URL(`../.github/workflows/${file}`, import.meta.url), "utf8");
   const lines = src.split("\n");
-  const start = lines.findIndex(l => /^\s+run: \|\s*$/.test(l) &&
-    lines[lines.indexOf(l) - 1]?.includes("Committa"));
+  /* `lines.indexOf(l)` fann FYRSTU linuna med sama texta — og `run: |` er
+     eins i hverju skrefi, svo thegar annad `run: |`-skref kom a undan
+     commit-skrefinu (hofnunar-skrefid, 13.9.2026) benti visirinn a thad og
+     blokkin "fannst ekki". Visirinn ur findIndex er sa retti.            */
+  const start = lines.findIndex((l, i) => /^\s+run: \|\s*$/.test(l) &&
+    lines[i - 1]?.includes("Committa"));
   if (start < 0) return null;
   const body = [];
   const indent = (lines[start + 1].match(/^\s*/) || [""])[0].length;

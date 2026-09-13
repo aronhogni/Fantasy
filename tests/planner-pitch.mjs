@@ -42,7 +42,16 @@ const J = f => JSON.parse(readFileSync(D + f, "utf8"));
 
 const ALL = J("players.json").players;
 const TEAMS = (() => { const t = J("teams.json"); return t.teams || t; })();
-const byId = {}; ALL.forEach(p => byId[p.id] = p);
+const byId = {}; ALL.forEach(p => byId[p.id] = { ...p });
+/* VERDID SEM APPID SYNIR KEMUR UR news.json (hrada keyrslan, 30 min), EKKI
+   players.json (daglega keyrslan) — App.jsx yfirskrifar now_cost ur news.
+   Profid las players.json eitt og fell 13.9.2026 thegar daglega keyrslan
+   hafdi stadid i fimm daga (hlidid hafnadi) medan verd hreyfdust i news:
+   Hughes 4,0 i players.json, 3,9 i news.json -> banki 1,9 a moti 2,0.
+   Profid a ad lesa SOMU heimild sem skjarinn les.                        */
+try {
+  for (const n of (J("news.json").players || [])) if (byId[n.id] && n.now_cost != null) byId[n.id].now_cost = n.now_cost;
+} catch {}
 const teamShort = {}; TEAMS.forEach(t => teamShort[t.id] = t.short);
 
 /* PROFLIDID ER ThAD SAMA OG I `smoke.test.mjs` — sama START_SQUAD sem
