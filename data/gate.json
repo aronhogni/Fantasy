@@ -1,12 +1,12 @@
 {
- "updated": "2026-09-17T19:42:44.302Z",
+ "updated": "2026-09-17T19:43:28.052Z",
  "run": "daily",
- "ok": false,
- "n_problems": 1,
- "problems_text": "gate.json: NOT VALID JSON (Expected property name or '}' in JSON at position 2) — 724 bytes; a truncated file must never be committed",
- "last_refusal_at": "2026-09-17T19:42:44.302Z",
- "last_refusal_run": "daily",
- "last_refusal_text": "gate.json: NOT VALID JSON (Expected property name or '}' in JSON at position 2) — 724 bytes; a truncated file must never be committed",
- "last_pass_daily_at": null,
+ "ok": true,
+ "n_problems": 0,
+ "problems_text": "",
+ "last_refusal_at": null,
+ "last_refusal_run": null,
+ "last_refusal_text": null,
+ "last_pass_daily_at": "2026-09-17T19:43:28.052Z",
  "last_pass_fast_at": null
 }
