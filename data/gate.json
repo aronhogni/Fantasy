@@ -1,19 +1,12 @@
 {
-<<<<<<< Updated upstream
- "updated": "2026-09-17T19:40:23.105Z",
- "ok": false,
- "n_problems": 4,
- "problems_text": "euro_fixtures.json: `participation.3` (1 rows) DISAPPEARED from the file. | euro_fixtures.json: `participation.5` (1 rows) DISAPPEARED from the file. | euro_fixtures.json: `participation.8` (1 rows) DISAPPEARED from the file. | euro_fixtures.json: `participation.20` (1 rows) DISAPPEARED from the file."
-=======
- "updated": "2026-09-17T19:41:32.097Z",
+ "updated": "2026-09-17T19:42:44.302Z",
  "run": "daily",
- "ok": true,
- "n_problems": 0,
- "problems_text": "",
- "last_refusal_at": null,
- "last_refusal_run": null,
- "last_refusal_text": null,
- "last_pass_daily_at": "2026-09-17T19:41:32.097Z",
+ "ok": false,
+ "n_problems": 1,
+ "problems_text": "gate.json: NOT VALID JSON (Expected property name or '}' in JSON at position 2) — 724 bytes; a truncated file must never be committed",
+ "last_refusal_at": "2026-09-17T19:42:44.302Z",
+ "last_refusal_run": "daily",
+ "last_refusal_text": "gate.json: NOT VALID JSON (Expected property name or '}' in JSON at position 2) — 724 bytes; a truncated file must never be committed",
+ "last_pass_daily_at": null,
  "last_pass_fast_at": null
->>>>>>> Stashed changes
 }
