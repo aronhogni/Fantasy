@@ -3955,16 +3955,20 @@ export default function App() {
                         <span style={S.srcSwapLbl}
                           title={"Ranked by the measured buy ranking (rankScore), which already reads the upcoming fixtures for THIS position. Filtered to what you could actually do: same position, within his selling price plus your bank, still legal on three-per-club, and available."}>
                           {"instead:"}</span>
-                        {(unusedSwaps[p.id] || []).map(c => (
-                          <button key={c.id} style={S.srcSwapBtn}
-                            onClick={() => setDetail({ kind:"player", id:c.id })}
-                            title={interp("{0} — {1}, £{2}. Suggested by the measured buy ranking for this position over the coming gameweeks. Opens his card; it does not make the transfer.",
-                                          [byId[c.id]?.web_name || c.id,
-                                           teamById[byId[c.id]?.team]?.short || "?",
-                                           ((byId[c.id]?.now_cost ?? 0) / 10).toFixed(1)])}>
-                            {byId[c.id]?.web_name || c.id}
-                            <span style={S.srcSwapCost}>
-                              {" £"}{((byId[c.id]?.now_cost ?? 0) / 10).toFixed(1)}</span>
+                        {/* FRAMBJODANDINN ER `c.p`, EKKI `c` (17.9.2026): `swapCandidates`
+                            skilar rodum ur `rankedByPos` med leikmanninn undir `p`. Her stod
+                            `c.id` — undefined — svo hnappurinn bar engan key, nafnid vard
+                            tomt og verdid "£0.0" ur `?? 0`. Thad sast ekki fyrr en GW5-gogn
+                            flogudu bekkjarmann i proflidinu med gjaldgengum frambjodendum;
+                            react-warnings.mjs fell tha a "unique key". Tvaer villur i einni
+                            linu: rangt svid og tilbuid verd.                             */}
+                        {(unusedSwaps[p.id] || []).map(c => c?.p).filter(q => q && q.id != null).map(q => (
+                          <button key={q.id} style={S.srcSwapBtn}
+                            onClick={() => setDetail({ kind:"player", id:q.id })}
+                            title={interp("{0} — {1}, {2}. Suggested by the measured buy ranking for this position over the coming gameweeks. Opens his card; it does not make the transfer.",
+                                          [q.web_name || q.id, teamById[q.team]?.short || "?", fmtPrice(q.now_cost)])}>
+                            {q.web_name || q.id}
+                            <span style={S.srcSwapCost}>{" "}{fmtPrice(q.now_cost)}</span>
                           </button>
                         ))}
                       </div>
@@ -4781,19 +4785,26 @@ export default function App() {
         {/* HLIDID FYRST OG YFIR ALLA BREIDDINA thegar thad hafnar: hver onnur rod
             her ad nedan les tha GAMLA stodu, og thad er thetta sem skyrir hvers
             vegna. Graen einnar-linu rod thegar thad stodst.                   */}
-        {gate && gate.ok === false && (
+        {/* `last_refusal_at` er LIMT vid keyrsluna sem hafnadi og hverfur adeins
+            thegar SAMA keyrsla stenst — annars hefdi hrada keyrslan (30 min)
+            thurrkad ut hofnun daglegu keyrslunnar halftima sidar (17.9.2026). */}
+        {gate && (gate.last_refusal_at || gate.ok === false) && (
           <div style={{ ...S.srcRow, color: C.red, fontWeight: 600 }}
-               title={String(gate.problems_text || "")}>
+               title={String(gate.last_refusal_text || gate.problems_text || "")}>
             <span style={S.dotErr} />
-            {"Commit gate REFUSED the daily snapshot"} {gate.updated ? interp("at {0}", [fmtClock(gate.updated)]) : ""}
-            {" — every row below may be stale. "}{String(gate.problems_text || "").slice(0, 160)}
+            {`Commit gate REFUSED the ${gate.last_refusal_run || gate.run || "daily"} snapshot`
+              + ((gate.last_refusal_at || gate.updated) ? ` at ${fmtClock(gate.last_refusal_at || gate.updated)}` : "")
+              + " — the daily rows below may be stale. "
+              + String(gate.last_refusal_text || gate.problems_text || "").slice(0, 160)}
           </div>
         )}
         <div style={{ display:"grid", gap:"0 18px",
                       gridTemplateColumns:"repeat(auto-fill, minmax(270px, 1fr))" }}>
-          {gate && gate.ok === true && (
+          {gate && !gate.last_refusal_at && gate.ok === true && (
             <div style={S.srcRow} title={"scripts/validate-data.mjs — refuses a snapshot with invalid JSON, a wrong club count or a field that went to 0"}>
-              <span style={S.dotOk} />{"Commit gate — passed"} {gate.updated ? fmtClock(gate.updated) : ""}
+              <span style={S.dotOk} />{"Commit gate — passed"
+                + (gate.last_pass_daily_at ? ` · daily ${fmtClock(gate.last_pass_daily_at)}` : "")
+                + (gate.last_pass_fast_at ? ` · fast ${fmtClock(gate.last_pass_fast_at)}` : "")}
             </div>
           )}
           <div style={S.srcRow}><span style={S.dotOk} />FPL bootstrap — {players.length} {"players,"} {teams.length} {"teams"}</div>

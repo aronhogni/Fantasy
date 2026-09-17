@@ -333,7 +333,12 @@ globalThis.fetch = async url => {
    spilad, svo skiptin seu orugglega yfir throskuldi og tillagan birtist.
    VALID ER LEITT UR GOGNUNUM, ekki skrifad: hardkodud id urelidast vid
    naesta tímabil (sama regla og felldi linutolurnar ur CLAUDE.md).    */
-const mids = PL.filter(p => p.element_type === 3 && (p.minutes || 0) > 0)
+/* BADIR VERDA AD EIGA GRUNN (17.9.2026): `epForSwap` skilar null fyrir mann
+   an grunns (0 og null eru sitt hvad, sja model.js pointsBasisFor) og parid
+   verdur tha OVIST — spjaldid segir rettilega "No pair to rank yet". Odyrasti
+   midjumadurinn med minutur atti ep_next 0,0 i dag, svo profid valdi nakvaemlega
+   thann mann sem reglan hafnar. Sa sem er seldur er nu sa LAEGSTI med grunn.  */
+const mids = PL.filter(p => p.element_type === 3 && (p.minutes || 0) > 0 && parseFloat(p.ep_next) > 0)
   .sort((a, b) => (b.ep_next || 0) - (a.ep_next || 0));
 const good = mids[0], poor = mids[mids.length - 1];
 ok(`forsenda: tveir raunverulegir midjumenn (${poor?.web_name} -> ${good?.web_name})`,

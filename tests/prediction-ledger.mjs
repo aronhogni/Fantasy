@@ -706,9 +706,38 @@ console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)
   const openGw = (Array.isArray(oddsFile.gws) ? [...oddsFile.gws] : [])
     .sort((a, b) => b - a)
     .find(g => FX0.some(f => f.event === g && !f.finished && !f.finished_provisional));
-  const gwOdds = openGw ?? (Array.isArray(oddsFile.gws) && oddsFile.gws.length
-    ? oddsFile.gws[0] : null);
-  ok("FORSENDA: taflan naer yfir tiltekna umferd", gwOdds != null, `gws ${JSON.stringify(oddsFile.gws)}`);
+  const TEAMS = arr(tryJ("teams.json"), "teams");
+  const idOf = new Map(TEAMS.map(t => [t.short, t.id]));
+  const shortOf = new Map(TEAMS.map(t => [t.id, t.short]));
+  /* ============================================================
+     SKRAIN GETUR LEGID EFTIR DAGATALINU — OG ThA ER TAFLAN TILBUIN (17.9.2026)
+     ============================================================
+     odds.json bar GW3/GW4 (sott 6.9.) medan GW5-fresturinn var a morgun:
+     dagskeyrslan sem hefdi sott GW5-linurnar var hafnad af hlidinu tvo daga
+     i rod. Engin umferd i `gws` atti oleikinn leik, `gwOdds` fell a
+     spilada GW3 og „nytileg lina" vard 0 — profid fell a ASTANDI pipeline-
+     unnar, ekki a kodanum sem thad ver (taflan -> FFDR). Thad astand er
+     synilegt i Data sources og a heima thar. Her er tha smidud tafla fyrir
+     RAUNVERULEGU opnu umferdina ur fixtures.json, med gildum rodum (opp,
+     kickoff, diff, xg, xga), svo mekanisminn se profadur hvern dag.        */
+  let oddsUsed = oddsFile, synthetic = false;
+  let gwOdds = openGw ?? null;
+  if (gwOdds == null) {
+    const g = FX0.filter(f => f.event != null && !f.finished && !f.finished_provisional)
+      .map(f => f.event).sort((a, b) => a - b)[0] ?? null;
+    if (g != null) {
+      const teams = {};
+      for (const f of FX0.filter(f => f.event === g && f.kickoff_time)) {
+        const H = shortOf.get(f.team_h), A = shortOf.get(f.team_a);
+        if (!H || !A) continue;
+        teams[H] = { opp: A, kickoff: f.kickoff_time, diff: 0.35, xga: 1.1, xg: 1.6, cs: 30 };
+        teams[A] = { opp: H, kickoff: f.kickoff_time, diff: -0.35, xga: 1.6, xg: 1.1, cs: 22 };
+      }
+      oddsUsed = { gw: g, gws: [g], teams }; gwOdds = g; synthetic = true;
+    }
+  }
+  ok(`FORSENDA: taflan naer yfir tiltekna umferd (GW${gwOdds}${synthetic ? ", TILBUIN tafla — odds.json ber " + JSON.stringify(oddsFile.gws) + " og allar spiladar" : ""})`,
+     gwOdds != null, `gws ${JSON.stringify(oddsFile.gws)}`);
 
   const mk = (odds, gw) => buildSnapshot({
     gw,
@@ -720,7 +749,7 @@ console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)
     promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
     nowTs: Date.now(),
   });
-  const withMkt = mk(oddsFile, gwOdds);
+  const withMkt = mk(oddsUsed, gwOdds);
   const noMkt = mk(null, gwOdds);
   const key = r => `${r.team}|${r.opp}`;
   const byKey = new Map(noMkt.ffdr.map(r => [key(r), r]));
@@ -749,11 +778,9 @@ console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)
      og dagsetning. Fyrsta utgafa mín leit adeins a dagsetninguna og taldi
      16 felog nytileg thar sem thau eru 4 — dagsetning ein passar vid
      hvada leik sem er thann dag.                                       */
-  const TEAMS = arr(tryJ("teams.json"), "teams");
-  const idOf = new Map(TEAMS.map(t => [t.short, t.id]));
   const FX = FX0;
   const usable = new Set();
-  for (const [short, o] of Object.entries(oddsFile.teams || {})) {
+  for (const [short, o] of Object.entries(oddsUsed.teams || {})) {
     if (!o || o.diff == null || !o.opp || !o.kickoff) continue;
     const me = idOf.get(short), opp = idOf.get(o.opp);
     if (me == null || opp == null) continue;
@@ -774,7 +801,7 @@ console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)
 
   /* OG SNIDID MA EKKI SKIPTA MALI: `main()` sendir skrana, profin sendu
      tofluna. Baed eiga ad gefa SOMU tolu — annars er villan bara flutt.  */
-  const withTable = mk(oddsFile.teams, gwOdds);
+  const withTable = mk(oddsUsed.teams, gwOdds);
   const byKey2 = new Map(withTable.ffdr.map(r => [key(r), r]));
   const same = withMkt.ffdr.every(r => {
     const q = byKey2.get(key(r));

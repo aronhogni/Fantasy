@@ -95,7 +95,7 @@ jobs:
       # AD stodvast; appid les `data/` beint af raw.githubusercontent, svo
       # skemmd skra fer oleidrett i vafra notandans.
       - name: Hlid - sannreyna snapshot fyrir commit
-        run: node scripts/validate-data.mjs
+        run: node scripts/validate-data.mjs --run=daily
 
       # HOFNUN HLIDSINS ER COMMITTUD SEM EIN SKRA (13.9.2026). Hafni hlidid er
       # snapshotid EKKI committad — en `data/gate.json` (sem hlidid skrifadi) er

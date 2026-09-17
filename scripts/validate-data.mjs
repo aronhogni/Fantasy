@@ -249,9 +249,37 @@ const SOURCE_RESET = [
 ];
 /* Skrifar data/gate.json atomiskt (tmp + rename, eins og writeJSON). Utflutt
    svo profid geti skrifad i tilbuna moppu.                                */
+/* HOFNUNIN ER LIMD VID KEYRSLUNA SEM HAFNADI (17.9.2026). Fyrsta utgafan bar
+   adeins `ok` fyrir SIDUSTU keyrslu — og hrada keyrslan (30 min) stodst sitt
+   hlid halftima eftir ad daglega hafnadi, svo gate.json las `ok: true` medan
+   dagskommitid var stodvad tvo daga i rod (16.-17.9.). Nu ber skrain
+   sidustu hofnun (hvenaer, hvor keyrslan, hvers vegna) og sidasta stadna
+   hlid HVORRAR keyrslu; hofnun hverfur adeins thegar SAMA keyrsla stenst.
+   Allt afram skalarar — counts() telur fylki og hluti.                  */
+export function gateRecord(prev, { ok, n_problems, problems_text, run = "unknown", now = new Date().toISOString() }) {
+  const p = prev && typeof prev === "object" ? prev : {};
+  const rec = {
+    updated: now, run, ok, n_problems, problems_text,
+    last_refusal_at: p.last_refusal_at ?? null,
+    last_refusal_run: p.last_refusal_run ?? null,
+    last_refusal_text: p.last_refusal_text ?? null,
+    last_pass_daily_at: p.last_pass_daily_at ?? null,
+    last_pass_fast_at: p.last_pass_fast_at ?? null,
+  };
+  if (!ok) { rec.last_refusal_at = now; rec.last_refusal_run = run; rec.last_refusal_text = problems_text; }
+  else {
+    if (run === "daily") rec.last_pass_daily_at = now;
+    if (run === "fast") rec.last_pass_fast_at = now;
+    if (rec.last_refusal_run === run) { rec.last_refusal_at = null; rec.last_refusal_run = null; rec.last_refusal_text = null; }
+  }
+  return rec;
+}
+export function readGate(dir = DATA) {
+  try { return JSON.parse(readFileSync(`${dir}/gate.json`, "utf8")); } catch { return null; }
+}
 export function writeGate(rec, dir = DATA) {
   const p = `${dir}/gate.json`;
-  const body = JSON.stringify({ updated: new Date().toISOString(), ...rec }, null, 1);
+  const body = JSON.stringify(rec.updated ? rec : { updated: new Date().toISOString(), ...rec }, null, 1);
   writeFileSync(p + ".tmp", body);
   renameSync(p + ".tmp", p);
   return p;
@@ -400,8 +428,9 @@ for (const n of notes) console.log(`  ·    ${n}`);
    ADEINS SKALARAR i skranni (ok, n_problems, problems_text): `counts()`
    telur fylki og hluti, svo skra sem ber vandamalalista sem fylki hefdi
    sjalf fellt naesta hlid thegar listinn for ur N i 0.               */
-writeGate({ ok: !problems.length, n_problems: problems.length,
-            problems_text: problems.slice(0, 6).join(" | ").slice(0, 600) });
+const runArg = (process.argv.find(a => a.startsWith("--run=")) || "").slice(6) || "unknown";
+writeGate(gateRecord(readGate(), { ok: !problems.length, n_problems: problems.length,
+  problems_text: problems.slice(0, 6).join(" | ").slice(0, 600), run: runArg }));
 if (!problems.length) { console.log("  OK   snapshot is safe to commit"); process.exit(0); }
 console.log(`\n  ${problems.length} PROBLEM(S) — REFUSING THE COMMIT:`);
 for (const p of problems) console.log(`  ✗    ${p}`);

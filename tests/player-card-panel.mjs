@@ -213,7 +213,11 @@ console.log("\n--- A. St%-HLIDID ---");
   const FIX3 = FIX.map(f => (f.event != null && f.event <= 3
     ? { ...f, finished: false, finished_provisional: true, started: true, team_h_score: 1, team_a_score: 1 }
     : { ...f, finished: false, finished_provisional: false, started: false, team_h_score: null, team_a_score: null }));
-  const enoughId = squad.find(p => +p.minutes > 0 && rotOf(p, 3)?.level !== "low");
+  /* `rotationRisk` skilar null thegar byrjanir > leikir (players.json ber i dag
+      fjorar byrjanir en tilbuni heimurinn thrja leiki) — og `null?.level !==
+      "low"` er SATT, svo madur an reits var valinn (17.9.2026). Reiturinn
+      krefst raunverulegrar tolu, ekki adeins "ekki low".                    */
+   const enoughId = squad.find(p => { const r = rotOf(p, 3); return +p.minutes > 0 && r && r.level !== "low"; });
   ok(!!enoughId, "forsenda: einhver i proflidinu faer tolu thegar felagid hefur spilad thrjá");
   const v2 = await mount({ captain: 411 }, { patch: { "fixtures.json": FIX3 } });
   ok(await v2.openCard(enoughId.web_name), `spjald ${enoughId.web_name} opnadist (nog urtak)`);

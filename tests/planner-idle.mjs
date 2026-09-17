@@ -67,7 +67,29 @@ const HAS = t => /Not been in your XI/.test(t);
    og fullyrdingin "raunveruleg vixl -> bordinn birtist" hefdi fallid og
    sagt hvers vegna. Sja `tests/lib/played-events.mjs`.
    ============================================================ */
-const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
+/* BEKKURINN ER NEGLDUR A VERDGOLFID I TILBUNA HEIMINUM (17.9.2026).
+   Athugasemdin nedar segir thad sjalf: thogn i tilfellum 1-3 hefur TVAER
+   orsakir, `planned`-hlidid OG verdgolfs-undanthagan — og su sidari var
+   fengin ad lani fra LIFANDI verdum. 17.9. hafdi verd hreyfst (Hughes
+   3,9/4,0 medan odyrasti varnarmadur deildarinnar for nedar) svo einn
+   bekkjarmadur var ekki lengur a golfinu, bordinn nefndi hann rettilega og
+   "engin planun -> thogn" fell an thess ad neitt vaeri ad appinu. Fost
+   fullyrding um lifandi verd ureldist thegjandi (CLAUDE.md 1). Nu eru
+   fjorir bekkjarmenn proflidsins settir a golf sinnar stodu i BADUM
+   verd-heimildunum sem appid les (players.json og news.json, sem
+   yfirskrifar now_cost), svo thogn-tilfellin maeli hlidid, ekki dagatalid. */
+const BENCH = [497, 173, 278, 321];
+const pinBench = () => {
+  const pl = J("players.json"); const rows = pl.players.map(p => ({ ...p }));
+  const floor = {};
+  for (const p of rows) { const c = Number(p.now_cost); if (Number.isFinite(c)) floor[p.element_type] = Math.min(floor[p.element_type] ?? Infinity, c); }
+  for (const p of rows) if (BENCH.includes(p.id)) p.now_cost = floor[p.element_type];
+  let news = null;
+  try { const n = J("news.json"); news = { ...n, players: (n.players || []).map(x => BENCH.includes(x.id) ? { ...x, now_cost: floor[rows.find(p => p.id === x.id)?.element_type] ?? x.now_cost } : x) }; } catch {}
+  return { "players.json": { ...pl, players: rows }, ...(news ? { "news.json": news } : {}) };
+};
+const PINNED = pinBench();
+const PLAYED = { ...PINNED, "events.json": { events: playedEvents(J("events.json").events, 4) } };
 
 /* FORSENDAN FYRST: i FORLEIK segir bordinn EKKERT — engin saga er til.
 

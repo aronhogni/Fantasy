@@ -95,6 +95,22 @@ const byId = {}; ALL.forEach(p => byId[p.id] = p);
    `gw1-persistence.mjs`, sem nagl-festir ollum 15).                     */
 const START_IDS = [496,11,356,423,542,397,426,239,368,411,346,497,173,278,321];
 const BENCH_IDS = [497,173,278,321];          // starter:false i START_SQUAD
+/* BEKKUR PROFLIDSINS ER NEGLDUR A VERDGOLFID I TILBUNU HEIMUNUM (17.9.2026).
+   Fullyrdingin „odyrasti bekkjarmadur er aldrei nefndur" hvildi a thvi ad
+   Dubravka/Thomas/Hughes vaeru a LIFANDI golfi sinnar stodu; 17.9. for
+   odyrasti varnarmadur deildarinnar i 3,9 og Thomas (4,0) var rettilega
+   nefndur — profid fell a dagatalinu. Verdid er sett a golfid i BADUM
+   heimildunum sem appid les (news.json yfirskrifar now_cost).           */
+const pinBench = (patch) => {
+  const pl = J("players.json"); const rows = pl.players.map(p => ({ ...p }));
+  const floor = {};
+  for (const p of rows) { const c = Number(p.now_cost); if (Number.isFinite(c)) floor[p.element_type] = Math.min(floor[p.element_type] ?? Infinity, c); }
+  const posOf = Object.fromEntries(rows.map(p => [p.id, p.element_type]));
+  for (const p of rows) if (BENCH_IDS.includes(p.id)) p.now_cost = floor[p.element_type];
+  const out = { ...patch, "players.json": { ...pl, players: rows } };
+  try { const n = J("news.json"); out["news.json"] = { ...n, players: (n.players || []).map(x => BENCH_IDS.includes(x.id) ? { ...x, now_cost: floor[posOf[x.id]] ?? x.now_cost } : x) }; } catch {}
+  return out;
+};
 
 const realSetTimeout = globalThis.setTimeout;
 const sleep = ms => new Promise(r => realSetTimeout(r, ms));
@@ -1120,7 +1136,7 @@ console.log("\n--- J. st0% ---");
 console.log("\n--- K. AFTURABAK ---");
 {
   const EV = J("events.json").events;
-  const P4 = { "events.json": { events: playedEvents(EV, 4) } };
+  const P4 = pinBench({ "events.json": { events: playedEvents(EV, 4) } });
   const P1 = { "events.json": { events: playedEvents(EV, 1) } };
   const HAAL = byId[411].web_name;
 
@@ -1180,7 +1196,7 @@ console.log("\n--- K. AFTURABAK ---");
         eda `maxGw`, svo stokkbreytingin „teldu allar umferdir sem sogu"
         SLAPP GEGNUM safnid. Hun fellur adeins thegar notandinn er ad SKODA
         umferd sem er ekki byrjud.                                       */
-  const P2 = { "events.json": { events: playedEvents(EV, 2) } };
+  const P2 = pinBench({ "events.json": { events: playedEvents(EV, 2) } });
   const far = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P2 , gw: null });
   const n6 = far.q("button").find(b => b.textContent.trim() === "6");
   ok(!!n6, "forsenda: GW6-hnutur er a timalinunni");
@@ -1543,7 +1559,7 @@ console.log(`     framvirki glugginn i dag: ${FWD_WIN}`);
   /* 1. GW1-UPPSTILLING EIN — birtist, og SEGIR ERFDINA.
         Forleikur: afturvirka synin thegir samtimis, svo bædi svorin eru
         profud i EINNI festingu og geta ekki verid rugluð saman.        */
-  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } });
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: pinBench({}) });   // bekkur a golfinu, sja pinBench
   ok(!/Not been in your XI/.test(v.text()),
      "FORSENDA: AFTURVIRKA synin thegir afram i forleik (0 umferdir byrjadar)");
   ok(v.text().includes(`${FWD_HEAD} \u2014 ${FWD_WIN}`),

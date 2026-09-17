@@ -17,7 +17,7 @@
    Keyrsla:  node tests/validate-data.mjs
    ============================================================ */
 import { readFileSync } from "node:fs";
-import { counts, regressions, writeGate } from "../scripts/validate-data.mjs";
+import { counts, regressions, writeGate, gateRecord } from "../scripts/validate-data.mjs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { bsdOddsNote } from "../scripts/fetch.mjs";
@@ -282,10 +282,25 @@ console.log("\n=== gate.json — skrifud i badum tilfellum, adeins skalarar ==="
      "hofnun -> stodst -> hofnun fellir hlidid ekki i hvoruga att");
   ok(!readFileSync(p, "utf8").includes(".tmp") && !require_exists(p + ".tmp"), "tmp-skrain er endurnefnd, ekki skilin eftir");
   function require_exists(f) { try { readFileSync(f); return true; } catch { return false; } }
+  /* LIMD HOFNUN: hrada keyrslan ma ekki thurrka ut hofnun daglegu (17.9.2026). */
+  const r1 = gateRecord(null, { ok: false, n_problems: 4, problems_text: "participation.3 …", run: "daily", now: "2026-09-16T09:52:00Z" });
+  const r2 = gateRecord(r1, { ok: true, n_problems: 0, problems_text: "", run: "fast", now: "2026-09-16T10:30:00Z" });
+  ok(r2.ok === true && r2.last_refusal_at === "2026-09-16T09:52:00Z" && r2.last_refusal_run === "daily" && /participation/.test(r2.last_refusal_text),
+     "hrada keyrslan stenst en hofnun daglegu STENDUR i skranni");
+  ok(r2.last_pass_fast_at === "2026-09-16T10:30:00Z" && r2.last_pass_daily_at === null, "stadid hlid er skrad per keyrslu");
+  const r3 = gateRecord(r2, { ok: true, n_problems: 0, problems_text: "", run: "daily", now: "2026-09-17T09:55:00Z" });
+  ok(r3.last_refusal_at === null && r3.last_refusal_run === null && r3.last_pass_daily_at === "2026-09-17T09:55:00Z",
+     "hofnunin hverfur adeins thegar SAMA keyrsla stenst");
+  ok(Object.keys(counts(r2)).length === 0 && regressions(r3, r2, "gate.json").length === 0 && regressions(r2, r3, "gate.json").length === 0,
+     "limda skrain er afram skalarar einir og fellir ekki hlidid i hvoruga att");
   const src = readFileSync(new URL("../scripts/validate-data.mjs", import.meta.url), "utf8");
-  const tail = src.slice(src.indexOf("writeGate({ ok: !problems.length"));
-  ok(/writeGate\(\{ ok: !problems\.length/.test(src) && /process\.exit\(0\)/.test(tail) && /process\.exit\(1\)/.test(tail),
-     "hlidid skrifar gate.json ADUR en thad velur milli exit 0 og exit 1");
+  const tail = src.slice(src.indexOf("writeGate(gateRecord(readGate()"));
+  ok(/writeGate\(gateRecord\(readGate\(\), \{ ok: !problems\.length/.test(src) && /process\.exit\(0\)/.test(tail) && /process\.exit\(1\)/.test(tail),
+     "hlidid skrifar gate.json (limt vid fyrri skra) ADUR en thad velur milli exit 0 og exit 1");
+  for (const [f, run] of [["fetch.yml", "daily"], ["fetch-fast.yml", "fast"]]) {
+    const y = readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), "utf8");
+    ok(y.includes(`node scripts/validate-data.mjs --run=${run}`), `${f} segir hlidinu hvor keyrslan thad er (--run=${run})`);
+  }
   for (const f of ["fetch.yml", "fetch-fast.yml"]) {
     const y = readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), "utf8");
     const i = y.indexOf("Skra hofnun hlidsins");

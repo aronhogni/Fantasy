@@ -117,23 +117,44 @@ ok(`summurnar eru ekki-tomar (${REF.goals} mork, ${REF.assists} upplegg, `
 /* ---- NAKVAEMT OHAD HAMARK FYRIR "Team of the week" ----
    Annar algrimur en `bestXi`: uppteljari yfir allar leyfilegar
    uppstillingar, topp-N innan hverrar stodu. Skilar OSKEIKULU hamarki.  */
-const byPos = { GK: [], DEF: [], MID: [], FWD: [] };
-for (const p of P) if (byPos[p.pos]) byPos[p.pos].push(p);
-for (const k of Object.keys(byPos))
-  byPos[k].sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.bps ?? 0) - (a.bps ?? 0));
-const lineSum = (arr, n) => arr.slice(0, n).reduce((a, x) => a + (x.points ?? 0), 0);
-let xiBest = -1, xiShape = null;
-for (let d = 3; d <= 5; d++) for (let m = 2; m <= 5; m++) for (let f = 1; f <= 3; f++) {
-  if (1 + d + m + f !== 11) continue;
-  if (!byPos.GK.length || byPos.DEF.length < d || byPos.MID.length < m || byPos.FWD.length < f) continue;
-  const s = lineSum(byPos.GK, 1) + lineSum(byPos.DEF, d) + lineSum(byPos.MID, m) + lineSum(byPos.FWD, f);
-  if (s > xiBest) { xiBest = s; xiShape = [d, m, f]; }
-}
-const top11 = P.slice().sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+const legalMax = rows => {
+  const byPos = { GK: [], DEF: [], MID: [], FWD: [] };
+  for (const p of rows) if (byPos[p.pos]) byPos[p.pos].push(p);
+  for (const k of Object.keys(byPos))
+    byPos[k].sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.bps ?? 0) - (a.bps ?? 0));
+  const lineSum = (arr, n) => arr.slice(0, n).reduce((a, x) => a + (x.points ?? 0), 0);
+  let best = -1, shape = null;
+  for (let d = 3; d <= 5; d++) for (let m = 2; m <= 5; m++) for (let f = 1; f <= 3; f++) {
+    if (1 + d + m + f !== 11) continue;
+    if (!byPos.GK.length || byPos.DEF.length < d || byPos.MID.length < m || byPos.FWD.length < f) continue;
+    const s = lineSum(byPos.GK, 1) + lineSum(byPos.DEF, d) + lineSum(byPos.MID, m) + lineSum(byPos.FWD, f);
+    if (s > best) { best = s; shape = [d, m, f]; }
+  }
+  return { best, shape };
+};
+const rawTop11 = rows => rows.slice().sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
   .slice(0, 11).reduce((a, x) => a + (x.points ?? 0), 0);
-ok(`uppstillingar-skilyrdid BITUR — obundid topp-11 er ${top11}, leyfilegt `
-  + `hamark ${xiBest} (${xiShape?.join("-")})`, top11 > xiBest,
-  "— vaeru thau jofn myndi XI-fullyrdingin standast an thess ad profa neitt");
+const { best: xiBest, shape: xiShape } = legalMax(P);
+const top11 = rawTop11(P);
+/* HVORT SKILYRDID BITUR A LIFANDI GOGNUM ER DAGATAL, EKKI VORDUR (17.9.2026).
+   Her stod `top11 > xiBest` — og GW4 gaf umferd thar sem ellefu stigahaestu
+   MYNDA logmaeta uppstillingu, svo profid fell an thess ad neitt vaeri ad.
+   Invariantid sem gildir alltaf er `>=` (obundid hamark er aldrei laegra en
+   bundid); ad uppteljarinn RAUNVERULEGA thvingi er profad a tilbunum hopi
+   thar sem sex varnarmenn eru stigahaestir — thar VERDUR munur.          */
+ok(`obundid topp-11 (${top11}) er aldrei laegra en leyfilegt hamark (${xiBest}, ${xiShape?.join("-")})`,
+   top11 >= xiBest);
+{
+  const syn = [
+    ...[1, 2].map(i => ({ pos: "GK", points: 5 - i })),
+    ...[1, 2, 3, 4, 5, 6].map(i => ({ pos: "DEF", points: 20 })),
+    ...[1, 2, 3, 4, 5].map(i => ({ pos: "MID", points: 2 })),
+    ...[1, 2, 3].map(i => ({ pos: "FWD", points: 1 })),
+  ];
+  const lm = legalMax(syn);
+  ok(`uppteljarinn ThVINGAR: sex 20-stiga varnarmenn -> obundid ${rawTop11(syn)}, leyfilegt ${lm.best} (${lm.shape?.join("-")})`,
+     rawTop11(syn) > lm.best && lm.shape?.[0] === 5);
+}
 
 /* ============================================================
    1. HARNESS — appid i jsdom med RAUNVERULEGUM data/

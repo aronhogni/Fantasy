@@ -3642,6 +3642,24 @@ async function fetchWeather() {
    (b) football-data.org — Meistaradeild frí "forever", þarf frían lykil (EURO_API_KEY)
    Slóðir/keppnikóðar eru ÓSTAÐFESTIR: við prófum nokkra og LOGGUM hvað svarar.
    ATH: UEFA-keppnir byrja um 16. sept 2026 -> GW1-4 hafa engin Evrópuleiki.       */
+/* Ber afram thatttoku ur fyrri skra fyrir keppnir sem API-id stadfesti EKKI i
+   dag (`partOk`), og adeins ef fyrri skrain er ur SAMA timabili. Hreint og
+   utflutt svo tests/euro-participation.mjs geti profad thad a tilbunum
+   inntokum — sja rokin vid kallid i fetchEuro.                           */
+export function carryParticipation(participation, prev, partOk, startYear) {
+  if (!prev?.updated || !participation) return 0;
+  if (seasonStartYearFrom(null, new Date(prev.updated)) !== startYear) return 0;
+  let carried = 0;
+  for (const [id, tags] of Object.entries(prev.participation || {})) {
+    for (const tag of (Array.isArray(tags) ? tags : [])) {
+      if (partOk.includes(tag)) continue;
+      const cur = participation[id] = participation[id] || [];
+      if (!cur.includes(tag)) { cur.push(tag); carried++; }
+    }
+  }
+  return carried;
+}
+
 async function fetchEuro() {
   const found = [];
   const matches = [];
@@ -3824,6 +3842,24 @@ async function fetchEuro() {
     }
   }
   if (fromFixtures) found.push(`part-from-fixtures(${fromFixtures})`);
+
+  /* ThATTTAKA SEM HEIMILDIN GETUR EKKI ENDURSTADFEST HELST INNAN TIMABILS
+     (17.9.2026). BOU, BHA, CRY og SUN fengu EL/ECL-merkid ur ESPN-
+     undankeppnisleikjunum i agust; 16.9. hofdu their leikir runnid ut ur
+     ESPN-glugganum, football-data.org svarar EL/ECL med 403/404 a fria
+     threpinu, og fjorir klubbar HURFU ur `participation` — hlidid hafnadi
+     dagskommitinu tvo daga i rod, RETTILEGA, thvi thetta les eins og
+     gagnatap. Thatttaka i Evropu er stadreynd um TIMABILID: klubbur sem
+     var i EL i agust er i EL i september. Faerslur ur fyrri skra eru thvi
+     bornar afram fyrir keppnir sem API-id STADFESTI EKKI i dag (`partOk`
+     raedur; stadfest keppni treystir listanum dagsins), og ADEINS ef fyrri
+     skrain er ur sama timabili — annars lifdi merkid yfir i naesta ar. */
+  let carried = 0;
+  try {
+    const prev = JSON.parse(await readFile(`${DATA}/euro_fixtures.json`, "utf8"));
+    carried = carryParticipation(participation, prev, partOk, seasonCodes().startYear);
+  } catch {}
+  if (carried) found.push(`part-carried(${carried})`);
 
   /* THEKJAN ER SKRAD, EKKI THOGD. Ef EL/ECL vantar er stjarnan "i
      Meistaradeildinni", ekki "i Evropu", og thad verdur ad sjast.       */

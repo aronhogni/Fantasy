@@ -487,7 +487,13 @@ undan commit, án `continue-on-error`. Undirmöppur eru þáttaðar.
 eina bikarleik. **Höfnun er committuð sem ein skrá, `data/gate.json`**
 (skalarar einir, svo hliðið geti ekki fellt hana sjálft), og Data sources
 sýnir rauða röð meðan hún stendur — status.json sjálf er hluti af hafnaða
-snapshotinu og getur ekki sagt frá.
+snapshotinu og getur ekki sagt frá. **Höfnunin er límd við keyrsluna sem
+hafnaði** (`--run=daily|fast`, `gateRecord`) og hverfur aðeins þegar sama
+keyrsla stenst — hraða keyrslan þurrkaði annars út höfnun daglegu hálftíma
+síðar (17.9.2026). **Þátttaka í Evrópu sem heimildin getur ekki
+endurstaðfest er borin áfram innan tímabils** (`carryParticipation`): EL/ECL
+komu úr ESPN-undankeppnisleikjum sem runnu út úr glugganum 16.9., og fjórir
+klúbbar hurfu — hliðið hafnaði réttilega, og lagfæringin er í skrifaranum.
 
 **`season_baseline.json` er skrifað aðeins fyrir fyrsta leik** og **aldrei
 verri skrá ofan á betri** (`seasonBaselineDecision`, hreint). FPL nullstillir

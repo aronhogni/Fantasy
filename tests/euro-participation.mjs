@@ -18,6 +18,7 @@
         thogult.
    ============================================================ */
 import { readFileSync } from "node:fs";
+import { carryParticipation } from "../scripts/fetch.mjs";
 
 const src = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url), "utf8");
 let pass = 0, fail = 0;
@@ -76,6 +77,24 @@ try {
               + `keppnir: ${[...comps].join(", ") || "engar"}`);
   console.log("  · (CL eitt = gomlu gognin; naesta keyrsla a ad baeta vid EL/ECL)");
 } catch { console.log("  · euro_fixtures.json ekki lesin"); }
+
+/* ---- THATTTAKA SEM HEIMILDIN GETUR EKKI ENDURSTADFEST HELST (17.9.2026) ----
+   Rauntilfellid: BOU/BHA/CRY/SUN misstu EL/ECL-merkid thegar ESPN-
+   undankeppnisleikirnir runnu ut ur glugganum og football-data.org svarar
+   EL/ECL med 403/404. Hlidid hafnadi dagskommitinu tvo daga i rod.       */
+console.log("\n=== carryParticipation — borid afram innan timabils, ekki yfir i naesta ===");
+{
+  const prev = { updated: "2026-09-15T09:59:00Z", participation: { 1: ["CL"], 3: ["EL"], 5: ["ECL"], 20: ["EL"] } };
+  const today = { 1: ["CL"], 2: ["CL"] };
+  const n = carryParticipation(today, prev, ["CL"], 2026);
+  ok(`EL/ECL ur fyrri skra eru borin afram thegar API-id stadfesti adeins CL (${n})`, n === 3 && today[3]?.[0] === "EL" && today[5]?.[0] === "ECL" && today[20]?.[0] === "EL");
+  ok("stadfest keppni (CL) treystir listanum dagsins — ekkert borid afram i hana", !today[1].includes("EL") && today[1].length === 1);
+  const t2 = { 1: ["CL"] };
+  ok("klubbur sem HVARF ur stadfestri keppni er ekki borinn afram (raunverulegt fall)", carryParticipation(t2, { ...prev, participation: { 1: ["CL"], 7: ["CL"] } }, ["CL"], 2026) === 0 && !t2[7]);
+  const t3 = { 1: ["CL"] };
+  ok("fyrri skra ur FYRRA timabili ber ekkert afram — merkid lifir ekki yfir i naesta ar", carryParticipation(t3, { updated: "2025-09-15T09:59:00Z", participation: { 3: ["EL"] } }, ["CL"], 2026) === 0 && !t3[3]);
+  ok("engin fyrri skra -> 0", carryParticipation({ 1: ["CL"] }, null, ["CL"], 2026) === 0);
+}
 
 console.log(`\nEVROPU-THATTTAKA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);
