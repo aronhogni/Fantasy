@@ -1,6 +1,6 @@
 {
- "updated": "2026-09-17T09:16:19.375Z",
- "ok": true,
- "n_problems": 0,
- "problems_text": ""
+ "updated": "2026-09-17T09:57:11.118Z",
+ "ok": false,
+ "n_problems": 4,
+ "problems_text": "euro_fixtures.json: `participation.3` (1 rows) DISAPPEARED from the file. | euro_fixtures.json: `participation.5` (1 rows) DISAPPEARED from the file. | euro_fixtures.json: `participation.8` (1 rows) DISAPPEARED from the file. | euro_fixtures.json: `participation.20` (1 rows) DISAPPEARED from the file."
 }
