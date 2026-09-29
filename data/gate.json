@@ -1,6 +1,6 @@
 {
- "updated": "2026-09-29T11:18:05.655Z",
- "run": "daily",
+ "updated": "2026-09-29T15:25:44.130Z",
+ "run": "fast",
  "ok": true,
  "n_problems": 0,
  "problems_text": "",
@@ -8,5 +8,5 @@
  "last_refusal_run": null,
  "last_refusal_text": null,
  "last_pass_daily_at": "2026-09-29T11:18:05.655Z",
- "last_pass_fast_at": "2026-09-29T08:53:54.801Z"
+ "last_pass_fast_at": "2026-09-29T15:25:44.130Z"
 }
