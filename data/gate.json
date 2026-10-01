@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-30T21:16:21.938Z",
+ "updated": "2026-10-01T00:42:32.538Z",
  "run": "fast",
  "ok": true,
  "n_problems": 0,
@@ -8,5 +8,5 @@
  "last_refusal_run": "daily",
  "last_refusal_text": "euro_fixtures.json: `fixtures` went 35 -> 0. An empty run must never erase good data (rule 8e). | euro_fixtures.json: `by_team` went 5 -> 0. An empty run must never erase good data (rule 8e).",
  "last_pass_daily_at": "2026-09-29T11:18:05.655Z",
- "last_pass_fast_at": "2026-09-30T21:16:21.938Z"
+ "last_pass_fast_at": "2026-10-01T00:42:32.538Z"
 }
