@@ -1,12 +1,12 @@
 {
- "updated": "2026-10-14T07:12:46.430Z",
- "run": "fast",
+ "updated": "2026-10-14T10:06:07.825Z",
+ "run": "daily",
  "ok": true,
  "n_problems": 0,
  "problems_text": "",
  "last_refusal_at": null,
  "last_refusal_run": null,
  "last_refusal_text": null,
- "last_pass_daily_at": "2026-10-13T12:38:23.604Z",
+ "last_pass_daily_at": "2026-10-14T10:06:07.825Z",
  "last_pass_fast_at": "2026-10-14T07:12:46.430Z"
 }
